@@ -37,6 +37,21 @@ export type SelectedDocumentRange = {
   text: string
 }
 
+export type RedactionGroup = {
+  key: string
+  text: string
+  normalizedText: string
+  type: Redaction['type']
+  source: string
+  reason: string
+  reviewStates: Record<ReviewState, number>
+  redactions: Redaction[]
+  representative: Redaction
+  minStart: number
+  maxEnd: number
+  maxConfidence: number | null
+}
+
 export const REVIEW_STATE_ORDER: Record<ReviewState, number> = {
   PENDING: 0,
   ADDED: 1,
@@ -47,9 +62,10 @@ export const REVIEW_STATE_ORDER: Record<ReviewState, number> = {
 export const PENDING_SOURCE_PRIORITY: Record<string, number> = {
   controlled_missed_pii: 0,
   controlled_false_positive: 1,
-  regex_candidate: 2,
-  synthetic_injection: 3,
-  user_added: 4,
+  gliner_local: 2,
+  regex_candidate: 3,
+  synthetic_injection: 4,
+  user_added: 5,
 }
 
 export const PII_TYPE_OPTIONS: PIIType[] = [
@@ -191,6 +207,88 @@ export function sortRedactionsForReview(left: Redaction, right: Redaction) {
     return right.end - left.end
   }
   return left.start - right.start
+}
+
+export function groupRedactionsForReview(redactions: Redaction[]): RedactionGroup[] {
+  const grouped = new Map<string, RedactionGroup>()
+
+  for (const redaction of redactions) {
+    const normalizedText = normalizeGroupingText(redaction.text)
+    const key = `${redaction.type}::${redaction.source}::${normalizedText}`
+    const existing = grouped.get(key)
+    if (existing) {
+      existing.redactions.push(redaction)
+      existing.reviewStates[redaction.review_state] += 1
+      existing.minStart = Math.min(existing.minStart, redaction.start)
+      existing.maxEnd = Math.max(existing.maxEnd, redaction.end)
+      if (
+        redaction.confidence != null &&
+        (existing.maxConfidence == null || redaction.confidence > existing.maxConfidence)
+      ) {
+        existing.maxConfidence = redaction.confidence
+      }
+      continue
+    }
+
+    grouped.set(key, {
+      key,
+      text: redaction.text,
+      normalizedText,
+      type: redaction.type,
+      source: redaction.source,
+      reason: redaction.reason,
+      reviewStates: {
+        PENDING: redaction.review_state === 'PENDING' ? 1 : 0,
+        ACCEPTED: redaction.review_state === 'ACCEPTED' ? 1 : 0,
+        REJECTED: redaction.review_state === 'REJECTED' ? 1 : 0,
+        ADDED: redaction.review_state === 'ADDED' ? 1 : 0,
+      },
+      redactions: [redaction],
+      representative: redaction,
+      minStart: redaction.start,
+      maxEnd: redaction.end,
+      maxConfidence: redaction.confidence ?? null,
+    })
+  }
+
+  return Array.from(grouped.values()).sort((left, right) => {
+    const leftState = primaryGroupReviewState(left)
+    const rightState = primaryGroupReviewState(right)
+    const groupReviewDelta = REVIEW_STATE_ORDER[leftState] - REVIEW_STATE_ORDER[rightState]
+    if (groupReviewDelta !== 0) {
+      return groupReviewDelta
+    }
+
+    if (leftState === 'PENDING' && rightState === 'PENDING') {
+      const leftPriority = PENDING_SOURCE_PRIORITY[left.source] ?? 99
+      const rightPriority = PENDING_SOURCE_PRIORITY[right.source] ?? 99
+      if (leftPriority !== rightPriority) {
+        return leftPriority - rightPriority
+      }
+    }
+
+    if (left.minStart === right.minStart) {
+      return left.maxEnd - right.maxEnd
+    }
+    return left.minStart - right.minStart
+  })
+}
+
+export function primaryGroupReviewState(group: RedactionGroup): ReviewState {
+  if (group.reviewStates.PENDING > 0) {
+    return 'PENDING'
+  }
+  if (group.reviewStates.ADDED > 0) {
+    return 'ADDED'
+  }
+  if (group.reviewStates.ACCEPTED > 0) {
+    return 'ACCEPTED'
+  }
+  return 'REJECTED'
+}
+
+function normalizeGroupingText(value: string) {
+  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase()
 }
 
 export function truncatePreview(value: string, maxChars: number) {

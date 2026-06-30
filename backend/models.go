@@ -52,7 +52,7 @@ type Redaction struct {
 	End             int
 	Text            string
 	Type            string
-	Confidence      float64
+	Confidence      *float64
 	Reason          string
 	Source          string
 	SuggestedStatus string
@@ -67,22 +67,22 @@ type RedactionRuntimeState struct {
 }
 
 type RedactionSnapshot struct {
-	ID              string  `json:"id"`
-	DocumentID      string  `json:"document_id"`
-	Start           int     `json:"start"`
-	End             int     `json:"end"`
-	Text            string  `json:"text"`
-	Type            string  `json:"type"`
-	Confidence      float64 `json:"confidence"`
-	Reason          string  `json:"reason"`
-	Source          string  `json:"source"`
-	SuggestedStatus string  `json:"suggested_status"`
-	IsGroundTruth   bool    `json:"is_ground_truth"`
-	ReviewState     string  `json:"review_state"`
-	ReviewedAt      *string `json:"reviewed_at"`
-	ReviewedBy      *string `json:"reviewed_by"`
-	IsUserAdded     bool    `json:"is_user_added"`
-	CreatedAt       *string `json:"created_at"`
+	ID              string   `json:"id"`
+	DocumentID      string   `json:"document_id"`
+	Start           int      `json:"start"`
+	End             int      `json:"end"`
+	Text            string   `json:"text"`
+	Type            string   `json:"type"`
+	Confidence      *float64 `json:"confidence"`
+	Reason          string   `json:"reason"`
+	Source          string   `json:"source"`
+	SuggestedStatus string   `json:"suggested_status"`
+	IsGroundTruth   bool     `json:"is_ground_truth"`
+	ReviewState     string   `json:"review_state"`
+	ReviewedAt      *string  `json:"reviewed_at"`
+	ReviewedBy      *string  `json:"reviewed_by"`
+	IsUserAdded     bool     `json:"is_user_added"`
+	CreatedAt       *string  `json:"created_at"`
 }
 
 type BatchSummary struct {
@@ -131,6 +131,14 @@ type RedactionMutationResult struct {
 	PreviousState string `json:"previous_state"`
 	ReviewState   string `json:"review_state"`
 	Changed       bool   `json:"changed"`
+}
+
+type BulkRedactionMutationResponse struct {
+	Requested int                       `json:"requested"`
+	Accepted  int                       `json:"accepted,omitempty"`
+	Rejected  int                       `json:"rejected,omitempty"`
+	Skipped   int                       `json:"skipped"`
+	Items     []RedactionMutationResult `json:"items"`
 }
 
 type BulkMutationResponse struct {

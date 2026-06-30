@@ -38,7 +38,13 @@ func main() {
 
 	workerCount := envInt("WORKER_COUNT", 8)
 	queueDepth := envInt("QUEUE_DEPTH", 200)
-	workerPool = NewWorkerPool(store, workerCount, queueDepth)
+	detector := newRuntimeDetector(logger, detectorConfig{
+		glinerEnabled:        envBool("GLINER_ENABLED", false),
+		glinerURL:            envString("GLINER_URL", "http://127.0.0.1:8090"),
+		glinerTimeoutMS:      envInt("GLINER_TIMEOUT_MS", 2500),
+		glinerMaxConcurrency: envInt("GLINER_MAX_CONCURRENCY", 1),
+	})
+	workerPool = NewWorkerPool(store, detector, workerCount, queueDepth)
 	workerPool.Start()
 
 	router := NewRouter(logger, store)
@@ -84,4 +90,28 @@ func envInt(key string, fallback int) int {
 		return fallback
 	}
 	return val
+}
+
+func envBool(key string, fallback bool) bool {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback
+	}
+
+	switch raw {
+	case "1", "true", "TRUE", "True", "yes", "YES", "on", "ON":
+		return true
+	case "0", "false", "FALSE", "False", "no", "NO", "off", "OFF":
+		return false
+	default:
+		return fallback
+	}
+}
+
+func envString(key, fallback string) string {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback
+	}
+	return raw
 }

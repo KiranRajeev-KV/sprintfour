@@ -283,7 +283,7 @@ func (s *Store) SetDocumentProcessed(documentID string, detections []runtimeDete
 	doc.RedactionCount = len(redactions)
 	doc.PIICount = len(redactions)
 	for _, r := range redactions {
-		if r.Confidence < lowConfidenceThreshold {
+		if r.Confidence != nil && *r.Confidence < lowConfidenceThreshold {
 			doc.LowConfidenceCount++
 		}
 	}
@@ -412,6 +412,9 @@ func (s *Store) Documents(status, risk, query string, limit, offset int) ([]Docu
 		}
 		filtered = append(filtered, snapshot)
 	}
+	sort.SliceStable(filtered, func(i, j int) bool {
+		return documentStatusPriority(filtered[i].Status) < documentStatusPriority(filtered[j].Status)
+	})
 
 	total := len(filtered)
 	if offset >= total {
@@ -420,6 +423,29 @@ func (s *Store) Documents(status, risk, query string, limit, offset int) ([]Docu
 
 	end := min(offset+limit, total)
 	return slices.Clone(filtered[offset:end]), total
+}
+
+func documentStatusPriority(status string) int {
+	switch status {
+	case "NEEDS_REVIEW":
+		return 0
+	case "FAILED":
+		return 1
+	case "PROCESSING":
+		return 2
+	case "QUEUED":
+		return 3
+	case "READY":
+		return 4
+	case "CLEAN":
+		return 5
+	case "APPROVED":
+		return 6
+	case "EXPORTED":
+		return 7
+	default:
+		return 99
+	}
 }
 
 func (s *Store) DocumentByID(documentID string) (DocumentSnapshot, bool) {
@@ -605,44 +631,69 @@ func (s *Store) AcceptRedaction(redactionID string, now time.Time) (RedactionMut
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	redaction, runtime, err := s.redactionStateLocked(redactionID)
-	if err != nil {
-		return RedactionMutationResult{}, err
-	}
-
-	result := RedactionMutationResult{
-		RedactionID:   redaction.ID,
-		DocumentID:    redaction.DocumentID,
-		PreviousState: runtime.ReviewState,
-		ReviewState:   runtime.ReviewState,
-	}
-
-	switch runtime.ReviewState {
-	case "ACCEPTED":
-		return result, nil
-	case "ADDED":
-		result.ReviewState = "ADDED"
-		return result, nil
-	case "PENDING", "REJECTED":
-		runtime.ReviewState = "ACCEPTED"
-		timestamp := now.UTC().Format(time.RFC3339)
-		runtime.ReviewedAt = &timestamp
-		s.redactionRuntimeByID[redaction.ID] = runtime
-		result.ReviewState = runtime.ReviewState
-		result.Changed = true
-		return result, nil
-	default:
-		return RedactionMutationResult{}, &StateConflictError{
-			Code:    "invalid_state",
-			Message: "redaction cannot be accepted from current state",
-		}
-	}
+	return s.mutateRedactionLocked(redactionID, "accept", now)
 }
 
 func (s *Store) RejectRedaction(redactionID string, now time.Time) (RedactionMutationResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	return s.mutateRedactionLocked(redactionID, "reject", now)
+}
+
+func (s *Store) BulkAcceptRedactions(redactionIDs []string, now time.Time) (BulkRedactionMutationResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	items := make([]RedactionMutationResult, 0, len(redactionIDs))
+	acceptedCount := 0
+
+	for _, redactionID := range redactionIDs {
+		result, err := s.mutateRedactionLocked(redactionID, "accept", now)
+		if err != nil {
+			return BulkRedactionMutationResponse{}, err
+		}
+		items = append(items, result)
+		if result.Changed {
+			acceptedCount++
+		}
+	}
+
+	return BulkRedactionMutationResponse{
+		Requested: len(redactionIDs),
+		Accepted:  acceptedCount,
+		Skipped:   len(redactionIDs) - acceptedCount,
+		Items:     items,
+	}, nil
+}
+
+func (s *Store) BulkRejectRedactions(redactionIDs []string, now time.Time) (BulkRedactionMutationResponse, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	items := make([]RedactionMutationResult, 0, len(redactionIDs))
+	rejectedCount := 0
+
+	for _, redactionID := range redactionIDs {
+		result, err := s.mutateRedactionLocked(redactionID, "reject", now)
+		if err != nil {
+			return BulkRedactionMutationResponse{}, err
+		}
+		items = append(items, result)
+		if result.Changed {
+			rejectedCount++
+		}
+	}
+
+	return BulkRedactionMutationResponse{
+		Requested: len(redactionIDs),
+		Rejected:  rejectedCount,
+		Skipped:   len(redactionIDs) - rejectedCount,
+		Items:     items,
+	}, nil
+}
+
+func (s *Store) mutateRedactionLocked(redactionID string, action string, now time.Time) (RedactionMutationResult, error) {
 	redaction, runtime, err := s.redactionStateLocked(redactionID)
 	if err != nil {
 		return RedactionMutationResult{}, err
@@ -655,25 +706,45 @@ func (s *Store) RejectRedaction(redactionID string, now time.Time) (RedactionMut
 		ReviewState:   runtime.ReviewState,
 	}
 
-	if runtime.ReviewState == "REJECTED" {
-		return result, nil
-	}
-
-	switch runtime.ReviewState {
-	case "PENDING", "ACCEPTED", "ADDED":
-		runtime.ReviewState = "REJECTED"
-		timestamp := now.UTC().Format(time.RFC3339)
-		runtime.ReviewedAt = &timestamp
-		s.redactionRuntimeByID[redaction.ID] = runtime
-		result.ReviewState = runtime.ReviewState
-		result.Changed = true
-		return result, nil
+	switch action {
+	case "accept":
+		switch runtime.ReviewState {
+		case "ACCEPTED", "ADDED":
+			return result, nil
+		case "PENDING", "REJECTED":
+			runtime.ReviewState = "ACCEPTED"
+		default:
+			return RedactionMutationResult{}, &StateConflictError{
+				Code:    "invalid_state",
+				Message: "redaction cannot be accepted from current state",
+			}
+		}
+	case "reject":
+		if runtime.ReviewState == "REJECTED" {
+			return result, nil
+		}
+		switch runtime.ReviewState {
+		case "PENDING", "ACCEPTED", "ADDED":
+			runtime.ReviewState = "REJECTED"
+		default:
+			return RedactionMutationResult{}, &StateConflictError{
+				Code:    "invalid_state",
+				Message: "redaction cannot be rejected from current state",
+			}
+		}
 	default:
-		return RedactionMutationResult{}, &StateConflictError{
-			Code:    "invalid_state",
-			Message: "redaction cannot be rejected from current state",
+		return RedactionMutationResult{}, &ValidationError{
+			Code:    "invalid_action",
+			Message: "invalid redaction action",
 		}
 	}
+
+	timestamp := now.UTC().Format(time.RFC3339)
+	runtime.ReviewedAt = &timestamp
+	s.redactionRuntimeByID[redaction.ID] = runtime
+	result.ReviewState = runtime.ReviewState
+	result.Changed = true
+	return result, nil
 }
 
 func (s *Store) AddManualRedaction(documentID string, input manualRedactionInput, now time.Time) (RedactionSnapshot, error) {
@@ -724,7 +795,7 @@ func (s *Store) AddManualRedaction(documentID string, input manualRedactionInput
 		End:             input.End,
 		Text:            spanText,
 		Type:            strings.ToUpper(strings.TrimSpace(input.Type)),
-		Confidence:      1.0,
+		Confidence:      float64Pointer(1.0),
 		Reason:          reason,
 		Source:          "user_added",
 		SuggestedStatus: "USER_ADDED",
@@ -1108,7 +1179,7 @@ func (s *Store) redactionCountsLocked(documentID string) redactionCounts {
 	for _, redaction := range s.redactionsByDoc[documentID] {
 		runtime := s.redactionRuntimeByID[redaction.ID]
 		counts.total++
-		if redaction.Confidence < lowConfidenceThreshold {
+		if redaction.Confidence != nil && *redaction.Confidence < lowConfidenceThreshold {
 			counts.lowConfidence++
 		}
 		switch redaction.Source {

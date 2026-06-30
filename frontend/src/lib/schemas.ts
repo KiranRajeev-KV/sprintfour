@@ -129,7 +129,7 @@ export const redactionSchema = z.object({
   end: z.number().int().nonnegative(),
   text: z.string(),
   type: piiTypeSchema,
-  confidence: z.number().min(0).max(1),
+  confidence: z.number().min(0).max(1).nullable(),
   reason: z.string(),
   source: z.string(),
   suggested_status: z.string(),
@@ -236,6 +236,14 @@ export const redactionMutationResultSchema = z.object({
   changed: z.boolean(),
 })
 
+export const bulkRedactionMutationResponseSchema = z.object({
+  requested: z.number().int().nonnegative(),
+  accepted: z.number().int().nonnegative().optional(),
+  rejected: z.number().int().nonnegative().optional(),
+  skipped: z.number().int().nonnegative(),
+  items: z.array(redactionMutationResultSchema),
+})
+
 export const uploadItemResultSchema = z.object({
   filename: z.string(),
   relative_path: z.string().nullable().optional(),
@@ -282,5 +290,8 @@ export type ExportSummary = z.infer<typeof exportSummarySchema>
 export type LatestExportResponse = z.infer<typeof latestExportResponseSchema>
 export type ReviewSummary = z.infer<typeof reviewSummarySchema>
 export type RedactionMutationResult = z.infer<typeof redactionMutationResultSchema>
+export type BulkRedactionMutationResponse = z.infer<
+  typeof bulkRedactionMutationResponseSchema
+>
 export type UploadBatchResponse = z.infer<typeof uploadBatchResponseSchema>
 export type UploadItemResult = z.infer<typeof uploadItemResultSchema>

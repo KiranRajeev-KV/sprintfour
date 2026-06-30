@@ -99,6 +99,20 @@ func TestListDocumentsFiltersByStatus(t *testing.T) {
 	}
 }
 
+func TestListDocumentsPrioritizesNeedsReviewBeforePagination(t *testing.T) {
+	store := testStore(t, nil)
+	documents, total := store.Documents("", "", "", 1, 0)
+	if total == 0 {
+		t.Fatal("expected documents in store")
+	}
+	if len(documents) != 1 {
+		t.Fatalf("expected one paginated document, got %d", len(documents))
+	}
+	if documents[0].Status != "NEEDS_REVIEW" {
+		t.Fatalf("expected first paginated document to need review, got %+v", documents[0])
+	}
+}
+
 func TestGetDocumentReturns404ForMissingID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	store := testStore(t, nil)
@@ -135,6 +149,42 @@ func TestAcceptPendingRedactionChangesToAccepted(t *testing.T) {
 	redactions := store.RedactionsByDocumentID("doc_0002")
 	for _, redaction := range redactions {
 		if redaction.ID == "red_000002" && redaction.ReviewState != "ACCEPTED" {
+			t.Fatalf("expected accepted state in snapshot, got %+v", redaction)
+		}
+	}
+}
+
+func TestBulkAcceptRedactionsAcceptsMatchingGroup(t *testing.T) {
+	store := testStore(t, func(documents []map[string]any, redactions []map[string]any) {
+		documents[1]["text"] = "Purchaser signed. Purchaser confirmed."
+		documents[1]["char_count"] = len([]rune(documents[1]["text"].(string)))
+		redactions[1]["start"] = 0
+		redactions[1]["end"] = len([]rune("Purchaser"))
+		redactions[1]["text"] = "Purchaser"
+		redactions[1]["type"] = "PERSON"
+		redactions[1]["confidence"] = 0.82
+		redactions[1]["reason"] = "Detected person via local GLiNER sidecar"
+		redactions[1]["source"] = "gliner_local"
+		redactions[2]["start"] = len([]rune("Purchaser signed. "))
+		redactions[2]["end"] = len([]rune("Purchaser signed. Purchaser"))
+		redactions[2]["text"] = "Purchaser"
+		redactions[2]["type"] = "PERSON"
+		redactions[2]["confidence"] = 0.82
+		redactions[2]["reason"] = "Detected person via local GLiNER sidecar"
+		redactions[2]["source"] = "gliner_local"
+	})
+
+	result, err := store.BulkAcceptRedactions([]string{"red_000002", "red_000003"}, time.Date(2026, 6, 30, 10, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("BulkAcceptRedactions returned error: %v", err)
+	}
+	if result.Accepted != 2 || result.Skipped != 0 {
+		t.Fatalf("unexpected bulk accept result: %+v", result)
+	}
+
+	redactions := store.RedactionsByDocumentID("doc_0002")
+	for _, redaction := range redactions {
+		if (redaction.ID == "red_000002" || redaction.ID == "red_000003") && redaction.ReviewState != "ACCEPTED" {
 			t.Fatalf("expected accepted state in snapshot, got %+v", redaction)
 		}
 	}

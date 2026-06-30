@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query'
 import {
   apiErrorSchema,
   batchSummarySchema,
+  bulkRedactionMutationResponseSchema,
   bulkMutationResponseSchema,
   documentDetailSchema,
   documentListResponseSchema,
@@ -110,6 +111,13 @@ export function documentDetailQueryOptions(documentId: string) {
     queryKey: ['document', documentId],
     queryFn: () =>
       requestJSON(`/api/documents/${documentId}`, documentDetailSchema),
+    refetchInterval: (query) => {
+      const data = query.state.data
+      if (data && (data.status === 'QUEUED' || data.status === 'PROCESSING')) {
+        return 2000
+      }
+      return false
+    },
   })
 }
 
@@ -211,6 +219,26 @@ export function rejectRedaction(redactionId: string) {
   return postJSON(
     `/api/redactions/${redactionId}/reject`,
     redactionMutationResultSchema,
+  )
+}
+
+export function bulkAcceptRedactions(redactionIds: string[]) {
+  return postJSON(
+    '/api/redactions/bulk-accept',
+    bulkRedactionMutationResponseSchema,
+    {
+      redaction_ids: redactionIds,
+    },
+  )
+}
+
+export function bulkRejectRedactions(redactionIds: string[]) {
+  return postJSON(
+    '/api/redactions/bulk-reject',
+    bulkRedactionMutationResponseSchema,
+    {
+      redaction_ids: redactionIds,
+    },
   )
 }
 

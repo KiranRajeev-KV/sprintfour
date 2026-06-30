@@ -1,5 +1,7 @@
 # Redactlane
 
+[Hackathon writeup](./writeup.md)
+
 Redactlane is a batch-first anonymization workflow for high-volume case file review. It is built for exception-first triage: safe files move forward quickly, risky files are routed to focused review, failed files can be retried, and approved files can be exported without blocking the rest of the batch.
 
 ## Dev Docs
@@ -13,6 +15,7 @@ Redactlane is a batch-first anonymization workflow for high-volume case file rev
 
 - `frontend/`: UI application
 - `backend/`: API server
+- `ner-sidecar/`: local FastAPI + GLiNER2 sidecar
 - `dataset/`: CUAD source corpus, manual synthetic samples, and helper scripts
 - `exported/`: exported redacted text output
 - `benchmark.md`: local upload benchmark results
@@ -58,6 +61,36 @@ Default local API address:
 http://localhost:8080
 ```
 
+Optional local GLiNER sidecar:
+
+```bash
+cd ner-sidecar
+uv sync
+env UV_CACHE_DIR=/tmp/uv-cache HF_HUB_DISABLE_XET=1 uv run uvicorn main:app --host 127.0.0.1 --port 8090
+```
+
+The sidecar loads `ner-sidecar/.env` automatically. With the current repo config, `uv sync` installs the CPU-only PyTorch wheel.
+
+Enable it in `backend/.env`:
+
+```text
+GLINER_ENABLED=true
+GLINER_URL=http://127.0.0.1:8090
+GLINER_TIMEOUT_MS=120000
+GLINER_MAX_CONCURRENCY=1
+```
+
+Recommended sidecar `.env`:
+
+```text
+GLINER_MODEL=fastino/gliner2-base-v1
+GLINER_DEVICE=cpu
+GLINER_QUANTIZE=false
+GLINER_COMPILE=false
+```
+
+If you later want GPU inference, you will need to replace the CPU-only torch install in `ner-sidecar/.venv` with a CUDA-enabled wheel manually.
+
 ### Run frontend
 
 From `frontend/`:
@@ -96,4 +129,4 @@ Backend API and workflow details are documented in [backend/README.md](/home/kr/
 
 ### Benchmark
 
-Measured upload timings and dataset-size benchmarks are documented in [benchmark.md](/home/kr/dev/sprintfour/benchmark.md:1).
+Measured upload timings and dataset-size benchmarks are documented in [benchmark.md](/home/kr/dev/sprintfour/benchmark.md:1). The current benchmark document is for pure regex detection only, without the optional GLiNER sidecar.

@@ -38,6 +38,8 @@ import {
   addManualRedaction,
   ApiError,
   approveDocument,
+  bulkAcceptRedactions,
+  bulkRejectRedactions,
   documentDetailQueryOptions,
   documentRedactionsQueryOptions,
   documentReviewSummaryQueryOptions,
@@ -46,11 +48,14 @@ import {
 } from "#/lib/api";
 import {
   buildHighlightRenderModel,
+  groupRedactionsForReview,
   getRedactionTone,
   getSelectedDocumentRange,
   PII_TYPE_OPTIONS,
+  primaryGroupReviewState,
   sortRedactionsForReview,
   truncatePreview,
+  type RedactionGroup,
   type SelectedDocumentRange,
 } from "#/lib/redaction-review";
 import type {
@@ -134,6 +139,7 @@ function DocumentReviewEditorPage() {
     null,
   );
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const previousStatusRef = useRef<DocumentStatus | null>(null);
 
   const { data: document } = useSuspenseQuery(
     documentDetailQueryOptions(documentId),
@@ -165,12 +171,39 @@ function DocumentReviewEditorPage() {
     () => [...redactions.items].sort(sortRedactionsForReview),
     [redactions.items],
   );
-  const selectedRedactionIndex = useMemo(
-    () => sortedRedactions.findIndex((item) => item.id === selectedRedactionID),
-    [selectedRedactionID, sortedRedactions],
+  const groupedRedactions = useMemo(
+    () => groupRedactionsForReview(sortedRedactions),
+    [sortedRedactions],
+  );
+  const redactionGroupKeyByID = useMemo(() => {
+    const mapping = new Map<string, string>();
+    for (const group of groupedRedactions) {
+      for (const redaction of group.redactions) {
+        mapping.set(redaction.id, group.key);
+      }
+    }
+    return mapping;
+  }, [groupedRedactions]);
+  const selectedRedactionGroupKey =
+    selectedRedactionID == null
+      ? null
+      : redactionGroupKeyByID.get(selectedRedactionID) ?? null;
+  const selectedRedactionGroupIndex = useMemo(
+    () => groupedRedactions.findIndex((group) => group.key === selectedRedactionGroupKey),
+    [groupedRedactions, selectedRedactionGroupKey],
   );
   const selectedRedaction =
-    selectedRedactionIndex >= 0 ? sortedRedactions[selectedRedactionIndex] : null;
+    selectedRedactionID == null
+      ? null
+      : sortedRedactions.find((item) => item.id === selectedRedactionID) ?? null;
+  const selectedRedactionGroup =
+    selectedRedactionGroupIndex >= 0
+      ? groupedRedactions[selectedRedactionGroupIndex]
+      : null;
+  const selectedRedactionIDs = useMemo(
+    () => new Set(selectedRedactionGroup?.redactions.map((item) => item.id) ?? []),
+    [selectedRedactionGroup],
+  );
   const renderModel = useMemo(
     () => buildHighlightRenderModel(document.text, redactions.items),
     [document.text, redactions.items],
@@ -179,12 +212,50 @@ function DocumentReviewEditorPage() {
     () => reviewQueue.items.findIndex((item) => item.id === documentId),
     [documentId, reviewQueue.items],
   );
-  const previousQueueDocument =
-    reviewQueueIndex > 0 ? reviewQueue.items[reviewQueueIndex - 1] : null;
-  const nextQueueDocument =
-    reviewQueueIndex >= 0 && reviewQueueIndex < reviewQueue.items.length - 1
-      ? reviewQueue.items[reviewQueueIndex + 1]
-      : null;
+  const previousQueueDocument = useMemo(() => {
+    if (reviewQueue.items.length === 0 || reviewQueueIndex < 0) {
+      return null;
+    }
+    const previousIndex =
+      (reviewQueueIndex - 1 + reviewQueue.items.length) % reviewQueue.items.length;
+    return reviewQueue.items[previousIndex] ?? null;
+  }, [reviewQueue.items, reviewQueueIndex]);
+  const nextQueueDocument = useMemo(() => {
+    if (reviewQueue.items.length === 0 || reviewQueueIndex < 0) {
+      return null;
+    }
+    const nextIndex = (reviewQueueIndex + 1) % reviewQueue.items.length;
+    return reviewQueue.items[nextIndex] ?? null;
+  }, [reviewQueue.items, reviewQueueIndex]);
+
+  useEffect(() => {
+    const previousStatus = previousStatusRef.current;
+    const isProcessingNow =
+      document.status === "QUEUED" || document.status === "PROCESSING";
+    const wasProcessing =
+      previousStatus === "QUEUED" || previousStatus === "PROCESSING";
+
+    if (isProcessingNow || (wasProcessing && !isProcessingNow)) {
+      const timer = window.setTimeout(() => {
+        void Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["document", documentId] }),
+          queryClient.invalidateQueries({
+            queryKey: ["document-redactions", documentId],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ["document-review-summary", documentId],
+          }),
+          queryClient.invalidateQueries({ queryKey: ["documents"] }),
+          queryClient.invalidateQueries({ queryKey: ["batch-summary"] }),
+        ]);
+      }, isProcessingNow ? 2000 : 0);
+
+      previousStatusRef.current = document.status;
+      return () => window.clearTimeout(timer);
+    }
+
+    previousStatusRef.current = document.status;
+  }, [document.status, documentId, queryClient]);
 
   useEffect(() => {
     if (sortedRedactions.length === 0) {
@@ -226,41 +297,62 @@ function DocumentReviewEditorPage() {
 
   const selectRelativeRedaction = useCallback(
     (direction: 1 | -1) => {
-      if (sortedRedactions.length === 0) {
+      if (groupedRedactions.length === 0) {
         return;
       }
-      const baseIndex = selectedRedactionIndex >= 0 ? selectedRedactionIndex : 0;
+      const baseIndex =
+        selectedRedactionGroupIndex >= 0 ? selectedRedactionGroupIndex : 0;
       const nextIndex = Math.min(
-        sortedRedactions.length - 1,
+        groupedRedactions.length - 1,
         Math.max(0, baseIndex + direction),
       );
-      const nextRedaction = sortedRedactions[nextIndex];
-      if (nextRedaction) {
-        setSelectedRedactionID(nextRedaction.id);
+      const nextGroup = groupedRedactions[nextIndex];
+      if (nextGroup) {
+        setSelectedRedactionID(nextGroup.representative.id);
         setActiveTab("suggestions");
       }
     },
-    [selectedRedactionIndex, sortedRedactions],
+    [groupedRedactions, selectedRedactionGroupIndex],
   );
 
   const reviewMutation = useMutation({
     mutationFn: ({
-      redactionId,
+      redactionIds,
       action,
     }: {
-      redactionId: string;
+      redactionIds: string[];
       action: "accept" | "reject";
     }) =>
       action === "accept"
-        ? acceptRedaction(redactionId)
-        : rejectRedaction(redactionId),
+        ? redactionIds.length === 1
+          ? acceptRedaction(redactionIds[0]!)
+          : bulkAcceptRedactions(redactionIds)
+        : redactionIds.length === 1
+          ? rejectRedaction(redactionIds[0]!)
+          : bulkRejectRedactions(redactionIds),
     onSuccess: async (result, variables) => {
+      const changedCount =
+        variables.action === "accept"
+          ? "accepted" in result
+            ? result.accepted ?? 0
+            : result.changed
+              ? 1
+              : 0
+          : "rejected" in result
+            ? result.rejected ?? 0
+            : result.changed
+              ? 1
+              : 0;
       setSidebarFeedback({
         tone: "success",
         message:
           variables.action === "accept"
-            ? `Accepted ${result.redaction_id}.`
-            : `Rejected ${result.redaction_id}.`,
+            ? variables.redactionIds.length === 1
+              ? `Accepted ${"redaction_id" in result ? result.redaction_id : variables.redactionIds[0]}.`
+              : `Accepted ${changedCount} matching suggestion${changedCount === 1 ? "" : "s"}.`
+            : variables.redactionIds.length === 1
+              ? `Rejected ${"redaction_id" in result ? result.redaction_id : variables.redactionIds[0]}.`
+              : `Rejected ${changedCount} matching suggestion${changedCount === 1 ? "" : "s"}.`,
       });
       setApproveFeedback(null);
       await invalidateReviewQueries();
@@ -394,15 +486,17 @@ function DocumentReviewEditorPage() {
       if (event.key === "a" || event.key === "A") {
         if (
           selectedRedaction &&
-          selectedRedaction.review_state !== "ACCEPTED" &&
-          selectedRedaction.review_state !== "ADDED" &&
+          selectedRedactionGroup &&
+          selectedRedactionGroup.reviewStates.PENDING +
+            selectedRedactionGroup.reviewStates.REJECTED >
+            0 &&
           !reviewMutation.isPending
         ) {
           event.preventDefault();
           setSidebarFeedback(null);
           setApproveFeedback(null);
           reviewMutation.mutate({
-            redactionId: selectedRedaction.id,
+            redactionIds: selectedRedactionGroup.redactions.map((item) => item.id),
             action: "accept",
           });
         }
@@ -411,14 +505,18 @@ function DocumentReviewEditorPage() {
       if (event.key === "r" || event.key === "R") {
         if (
           selectedRedaction &&
-          selectedRedaction.review_state !== "REJECTED" &&
+          selectedRedactionGroup &&
+          selectedRedactionGroup.reviewStates.PENDING +
+            selectedRedactionGroup.reviewStates.ACCEPTED +
+            selectedRedactionGroup.reviewStates.ADDED >
+            0 &&
           !reviewMutation.isPending
         ) {
           event.preventDefault();
           setSidebarFeedback(null);
           setApproveFeedback(null);
           reviewMutation.mutate({
-            redactionId: selectedRedaction.id,
+            redactionIds: selectedRedactionGroup.redactions.map((item) => item.id),
             action: "reject",
           });
         }
@@ -437,6 +535,7 @@ function DocumentReviewEditorPage() {
     reviewMutation,
     selectRelativeRedaction,
     selectedRedaction,
+    selectedRedactionGroup,
   ]);
 
   return (
@@ -531,38 +630,12 @@ function DocumentReviewEditorPage() {
       ) : null}
 
       <Card className="island-shell h-[calc(100vh-12rem)] min-h-[calc(100vh-12rem)] overflow-hidden border-white/45 py-0">
-        <CardHeader className="shrink-0 border-b border-black/5 px-5 pt-5 pb-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="space-y-1 pt-1">
-              <h2 className="text-2xl leading-[1.2] font-semibold text-[var(--sea-ink)]">
-                Redaction review workspace
-              </h2>
-              <p className="pt-0.5 text-sm leading-6 text-[var(--sea-ink-soft)]">
-                Resolve suggestions, add missed redactions, and approve only
-                when the blocking count reaches zero.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--sea-ink-soft)]">
-              <span className="rounded-full border border-white/60 bg-white/60 px-3 py-1">
-                {redactions.total.toLocaleString()} suggestions
-              </span>
-              {selectedRange ? (
-                <span className="rounded-full border border-[var(--lagoon-deep)]/30 bg-[var(--lagoon)]/10 px-3 py-1 text-[var(--sea-ink)]">
-                  Selection {selectedRange.start}-{selectedRange.end}
-                </span>
-              ) : null}
-              <span className="rounded-full border border-white/60 bg-white/60 px-3 py-1 text-[var(--sea-ink)]">
-                {reviewSummary.blocking_review_items} blocking
-              </span>
-            </div>
-          </div>
-        </CardHeader>
         <CardContent className="p-0">
           <section className="grid h-[calc(100vh-18rem)] min-h-[calc(100vh-18rem)] items-stretch gap-0 xl:grid-cols-[minmax(0,1fr)_31rem]">
             <FullPageDocumentEditor
               document={document}
               renderModel={renderModel}
-              selectedRedactionID={selectedRedactionID}
+              selectedRedactionIDs={selectedRedactionIDs}
               onSelectRedaction={setSelectedRedactionID}
               selectedRange={selectedRange}
               onSelectionChange={setSelectedRange}
@@ -582,10 +655,10 @@ function DocumentReviewEditorPage() {
               onGoToNextQueueDocument={() =>
                 goToQueueDocument(nextQueueDocument?.id ?? null)
               }
-              redactions={sortedRedactions}
+              groupedRedactions={groupedRedactions}
               overlappingRedactionIDs={renderModel.overlappingRedactionIDs}
               reviewSummary={reviewSummary}
-              selectedRedactionID={selectedRedactionID}
+              selectedRedactionGroupKey={selectedRedactionGroupKey}
               onSelectRedaction={setSelectedRedactionID}
               selectedRange={selectedRange}
               selectedType={selectedType}
@@ -601,12 +674,26 @@ function DocumentReviewEditorPage() {
               onAccept={(redactionId) => {
                 setSidebarFeedback(null);
                 setApproveFeedback(null);
-                reviewMutation.mutate({ redactionId, action: "accept" });
+                const groupKey = redactionGroupKeyByID.get(redactionId);
+                const group = groupedRedactions.find((item) => item.key === groupKey);
+                reviewMutation.mutate({
+                  redactionIds: group
+                    ? group.redactions.map((item) => item.id)
+                    : [redactionId],
+                  action: "accept",
+                });
               }}
               onReject={(redactionId) => {
                 setSidebarFeedback(null);
                 setApproveFeedback(null);
-                reviewMutation.mutate({ redactionId, action: "reject" });
+                const groupKey = redactionGroupKeyByID.get(redactionId);
+                const group = groupedRedactions.find((item) => item.key === groupKey);
+                reviewMutation.mutate({
+                  redactionIds: group
+                    ? group.redactions.map((item) => item.id)
+                    : [redactionId],
+                  action: "reject",
+                });
               }}
               onAddManualRedaction={() => {
                 setSidebarFeedback(null);
@@ -620,7 +707,7 @@ function DocumentReviewEditorPage() {
               }}
               isReviewMutationPending={reviewMutation.isPending}
               reviewMutationRedactionID={
-                reviewMutation.variables?.redactionId ?? null
+                reviewMutation.variables?.redactionIds?.[0] ?? null
               }
               isAddPending={addManualRedactionMutation.isPending}
               isApprovePending={approveMutation.isPending}
@@ -638,14 +725,14 @@ function DocumentReviewEditorPage() {
 function FullPageDocumentEditor({
   document,
   renderModel,
-  selectedRedactionID,
+  selectedRedactionIDs,
   onSelectRedaction,
   selectedRange,
   onSelectionChange,
 }: {
   document: DocumentDetail;
   renderModel: ReturnType<typeof buildHighlightRenderModel>;
-  selectedRedactionID: string | null;
+  selectedRedactionIDs: Set<string>;
   onSelectRedaction: (redactionID: string) => void;
   selectedRange: SelectedDocumentRange | null;
   onSelectionChange: (range: SelectedDocumentRange | null) => void;
@@ -656,7 +743,7 @@ function FullPageDocumentEditor({
         <DocumentTextSurface
           document={document}
           renderModel={renderModel}
-          selectedRedactionID={selectedRedactionID}
+          selectedRedactionIDs={selectedRedactionIDs}
           onSelectRedaction={onSelectRedaction}
           selectedRange={selectedRange}
           onSelectionChange={onSelectionChange}
@@ -669,14 +756,14 @@ function FullPageDocumentEditor({
 function DocumentTextSurface({
   document,
   renderModel,
-  selectedRedactionID,
+  selectedRedactionIDs,
   onSelectRedaction,
   selectedRange,
   onSelectionChange,
 }: {
   document: DocumentDetail;
   renderModel: ReturnType<typeof buildHighlightRenderModel>;
-  selectedRedactionID: string | null;
+  selectedRedactionIDs: Set<string>;
   onSelectRedaction: (redactionID: string) => void;
   selectedRange: SelectedDocumentRange | null;
   onSelectionChange: (range: SelectedDocumentRange | null) => void;
@@ -715,14 +802,15 @@ function DocumentTextSurface({
   }, [syncSelection]);
 
   useEffect(() => {
-    if (!selectedRedactionID) {
+    const firstSelectedRedactionID = selectedRedactionIDs.values().next().value;
+    if (!firstSelectedRedactionID) {
       return;
     }
-    const target = highlightRefs.current[selectedRedactionID];
+    const target = highlightRefs.current[firstSelectedRedactionID];
     if (target) {
       target.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-  }, [selectedRedactionID]);
+  }, [selectedRedactionIDs]);
 
   const overlapCount = renderModel.overlappingRedactionIDs.size;
 
@@ -770,7 +858,7 @@ function DocumentTextSurface({
               }
 
               const tone = getRedactionTone(segment.redaction);
-              const isSelected = selectedRedactionID === segment.redaction.id;
+              const isSelected = selectedRedactionIDs.has(segment.redaction.id);
               return (
                 <span
                   key={segment.key}
@@ -819,10 +907,10 @@ function ReviewSidebar({
   nextQueueDocumentId,
   onGoToPreviousQueueDocument,
   onGoToNextQueueDocument,
-  redactions,
+  groupedRedactions,
   overlappingRedactionIDs,
   reviewSummary,
-  selectedRedactionID,
+  selectedRedactionGroupKey,
   onSelectRedaction,
   selectedRange,
   selectedType,
@@ -851,10 +939,10 @@ function ReviewSidebar({
   nextQueueDocumentId: string | null;
   onGoToPreviousQueueDocument: () => void;
   onGoToNextQueueDocument: () => void;
-  redactions: Redaction[];
+  groupedRedactions: RedactionGroup[];
   overlappingRedactionIDs: Set<string>;
   reviewSummary: ReviewSummary;
-  selectedRedactionID: string | null;
+  selectedRedactionGroupKey: string | null;
   onSelectRedaction: (redactionID: string) => void;
   selectedRange: SelectedDocumentRange | null;
   selectedType: PIIType;
@@ -910,7 +998,7 @@ function ReviewSidebar({
             variant="outline"
             size="sm"
             className="rounded-full border-white/60 bg-white/72"
-            disabled={!previousQueueDocumentId}
+            disabled={reviewQueueCount === 0}
             onClick={onGoToPreviousQueueDocument}
           >
             <ChevronLeft className="size-4" />
@@ -921,7 +1009,7 @@ function ReviewSidebar({
             variant="outline"
             size="sm"
             className="rounded-full border-white/60 bg-white/72"
-            disabled={!nextQueueDocumentId}
+            disabled={reviewQueueCount === 0}
             onClick={onGoToNextQueueDocument}
           >
             Next in queue
@@ -957,9 +1045,9 @@ function ReviewSidebar({
           <TabsContent value="suggestions" className="flex flex-col">
             <SuggestionsTab
               documentStatus={document.status}
-              redactions={redactions}
+              groupedRedactions={groupedRedactions}
               overlappingRedactionIDs={overlappingRedactionIDs}
-              selectedRedactionID={selectedRedactionID}
+              selectedRedactionGroupKey={selectedRedactionGroupKey}
               onSelectRedaction={onSelectRedaction}
               selectedRange={selectedRange}
               selectedType={selectedType}
@@ -987,9 +1075,9 @@ function ReviewSidebar({
 
 function SuggestionsTab({
   documentStatus,
-  redactions,
+  groupedRedactions,
   overlappingRedactionIDs,
-  selectedRedactionID,
+  selectedRedactionGroupKey,
   onSelectRedaction,
   selectedRange,
   selectedType,
@@ -1005,9 +1093,9 @@ function SuggestionsTab({
   isAddPending,
 }: {
   documentStatus: DocumentStatus;
-  redactions: Redaction[];
+  groupedRedactions: RedactionGroup[];
   overlappingRedactionIDs: Set<string>;
-  selectedRedactionID: string | null;
+  selectedRedactionGroupKey: string | null;
   onSelectRedaction: (redactionID: string) => void;
   selectedRange: SelectedDocumentRange | null;
   selectedType: PIIType;
@@ -1022,6 +1110,18 @@ function SuggestionsTab({
   reviewMutationRedactionID: string | null;
   isAddPending: boolean;
 }) {
+  const cardRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  useEffect(() => {
+    if (!selectedRedactionGroupKey) {
+      return;
+    }
+    const target = cardRefs.current[selectedRedactionGroupKey];
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [selectedRedactionGroupKey]);
+
   return (
     <div className="flex flex-col">
       <div className="border-b border-black/5 bg-white/18 px-5 py-4">
@@ -1039,18 +1139,23 @@ function SuggestionsTab({
       </div>
 
       <div className="space-y-3 px-5 py-4">
-        {redactions.map((redaction) => (
+        {groupedRedactions.map((group) => (
           <RedactionReviewCard
-            key={redaction.id}
-            redaction={redaction}
-            isSelected={selectedRedactionID === redaction.id}
-            hasConflict={overlappingRedactionIDs.has(redaction.id)}
-            onSelect={() => onSelectRedaction(redaction.id)}
-            onAccept={() => onAccept(redaction.id)}
-            onReject={() => onReject(redaction.id)}
+            key={group.key}
+            cardRef={(node) => {
+              cardRefs.current[group.key] = node;
+            }}
+            group={group}
+            isSelected={selectedRedactionGroupKey === group.key}
+            hasConflict={group.redactions.some((item) =>
+              overlappingRedactionIDs.has(item.id),
+            )}
+            onSelect={() => onSelectRedaction(group.representative.id)}
+            onAccept={() => onAccept(group.representative.id)}
+            onReject={() => onReject(group.representative.id)}
             isMutationPending={
               isReviewMutationPending &&
-              reviewMutationRedactionID === redaction.id
+              group.redactions.some((item) => item.id === reviewMutationRedactionID)
             }
           />
         ))}
@@ -1172,7 +1277,8 @@ function AddRedactionFromSelection({
 }
 
 function RedactionReviewCard({
-  redaction,
+  cardRef,
+  group,
   isSelected,
   hasConflict,
   onSelect,
@@ -1180,7 +1286,8 @@ function RedactionReviewCard({
   onReject,
   isMutationPending,
 }: {
-  redaction: Redaction;
+  cardRef?: (node: HTMLElement | null) => void;
+  group: RedactionGroup;
   isSelected: boolean;
   hasConflict: boolean;
   onSelect: () => void;
@@ -1188,16 +1295,22 @@ function RedactionReviewCard({
   onReject: () => void;
   isMutationPending: boolean;
 }) {
+  const redaction = group.representative;
   const tone = getRedactionTone(redaction);
+  const primaryState = primaryGroupReviewState(group);
   const acceptDisabled =
     isMutationPending ||
-    redaction.review_state === "ACCEPTED" ||
-    redaction.review_state === "ADDED";
+    group.reviewStates.PENDING + group.reviewStates.REJECTED === 0;
   const rejectDisabled =
-    isMutationPending || redaction.review_state === "REJECTED";
+    isMutationPending ||
+    group.reviewStates.PENDING +
+      group.reviewStates.ACCEPTED +
+      group.reviewStates.ADDED ===
+      0;
 
   return (
     <article
+      ref={cardRef}
       role="button"
       tabIndex={0}
       onClick={onSelect}
@@ -1224,13 +1337,20 @@ function RedactionReviewCard({
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <ReviewStateBadge state={redaction.review_state} />
+            <ReviewStateBadge state={primaryState} />
+            {group.redactions.length > 1 ? (
+              <span className="rounded-full border border-white/65 bg-white/70 px-2 py-0.5 text-[11px] uppercase text-[var(--sea-ink-soft)]">
+                {group.redactions.length} matches
+              </span>
+            ) : null}
             <span className="rounded-full border border-white/65 bg-white/70 px-2 py-0.5 text-[11px] uppercase text-[var(--sea-ink)]">
-              {redaction.type.replaceAll("_", " ")}
+              {group.type.replaceAll("_", " ")}
             </span>
-            <span className="rounded-full border border-white/65 bg-white/70 px-2 py-0.5 text-[11px] uppercase text-[var(--sea-ink-soft)]">
-              {Math.round(redaction.confidence * 100)}%
-            </span>
+            {group.maxConfidence != null ? (
+              <span className="rounded-full border border-white/65 bg-white/70 px-2 py-0.5 text-[11px] uppercase text-[var(--sea-ink-soft)]">
+                {Math.round(group.maxConfidence * 100)}%
+              </span>
+            ) : null}
             {hasConflict ? (
               <span className="rounded-full border border-amber-500/30 bg-amber-500/12 px-2 py-0.5 text-[11px] uppercase text-amber-950">
                 overlap
@@ -1238,12 +1358,12 @@ function RedactionReviewCard({
             ) : null}
           </div>
           <p className="text-sm leading-6 text-[var(--sea-ink)]">
-            “{truncatePreview(redaction.text, 86)}”
+            “{truncatePreview(group.text, 86)}”
           </p>
         </div>
-        {redaction.review_state === "REJECTED" ? (
+        {primaryState === "REJECTED" ? (
           <XCircle className="mt-1 size-4 text-slate-500" />
-        ) : redaction.review_state === "PENDING" ? (
+        ) : primaryState === "PENDING" ? (
           <ShieldAlert className="mt-1 size-4 text-amber-700" />
         ) : (
           <CheckCircle2 className="mt-1 size-4 text-emerald-700" />
@@ -1251,16 +1371,34 @@ function RedactionReviewCard({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase text-[var(--sea-ink-soft)]">
-        <span>{redaction.source}</span>
+        <span>{group.source}</span>
         <span>{redaction.suggested_status}</span>
-        <span>
-          {redaction.start}-{redaction.end}
-        </span>
+        <span>{group.minStart}-{group.maxEnd}</span>
+        {group.redactions.length > 1 ? (
+          <span>{group.redactions.length} occurrences</span>
+        ) : null}
       </div>
 
       <p className="mt-3 text-sm leading-6 text-[var(--sea-ink-soft)]">
-        {redaction.reason}
+        {group.reason}
       </p>
+
+      {group.redactions.length > 1 ? (
+        <div className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase text-[var(--sea-ink-soft)]">
+          {group.reviewStates.PENDING > 0 ? (
+            <span>{group.reviewStates.PENDING} pending</span>
+          ) : null}
+          {group.reviewStates.ACCEPTED > 0 ? (
+            <span>{group.reviewStates.ACCEPTED} accepted</span>
+          ) : null}
+          {group.reviewStates.REJECTED > 0 ? (
+            <span>{group.reviewStates.REJECTED} rejected</span>
+          ) : null}
+          {group.reviewStates.ADDED > 0 ? (
+            <span>{group.reviewStates.ADDED} added</span>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-4 flex gap-2">
         <Button
@@ -1273,13 +1411,19 @@ function RedactionReviewCard({
             onAccept();
           }}
         >
-          {redaction.review_state === "ADDED"
-            ? "Already added"
-            : redaction.review_state === "ACCEPTED"
-              ? "Accepted"
-              : isMutationPending
-                ? "Saving…"
-                : "Accept"}
+          {group.redactions.length > 1
+            ? isMutationPending
+              ? "Saving…"
+              : acceptDisabled
+                ? "Accepted"
+                : `Accept all (${group.redactions.length})`
+            : redaction.review_state === "ADDED"
+              ? "Already added"
+              : redaction.review_state === "ACCEPTED"
+                ? "Accepted"
+                : isMutationPending
+                  ? "Saving…"
+                  : "Accept"}
         </Button>
         <Button
           type="button"
@@ -1292,15 +1436,21 @@ function RedactionReviewCard({
             onReject();
           }}
         >
-          {redaction.review_state === "ADDED"
+          {group.redactions.length > 1
             ? isMutationPending
-              ? "Clearing…"
-              : "Clear redaction"
-            : redaction.review_state === "REJECTED"
-              ? "Rejected"
-              : isMutationPending
-                ? "Saving…"
-                : "Reject"}
+              ? "Saving…"
+              : rejectDisabled
+                ? "Rejected"
+                : `Reject all (${group.redactions.length})`
+            : redaction.review_state === "ADDED"
+              ? isMutationPending
+                ? "Clearing…"
+                : "Clear redaction"
+              : redaction.review_state === "REJECTED"
+                ? "Rejected"
+                : isMutationPending
+                  ? "Saving…"
+                  : "Reject"}
         </Button>
       </div>
     </article>

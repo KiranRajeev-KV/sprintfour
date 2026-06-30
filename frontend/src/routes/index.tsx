@@ -122,6 +122,7 @@ function Home() {
     totalWithProgress > 0
       ? Math.round(((totalWithProgress - inProgress) / totalWithProgress) * 100)
       : 100
+  const previousInProgressRef = useRef(inProgress)
 
   const visibleDocumentIDs = useMemo(
     () => new Set(documents.items.map((document) => document.id)),
@@ -145,6 +146,19 @@ function Home() {
       return next
     })
   }, [visibleDocumentIDs])
+
+  useEffect(() => {
+    const previousInProgress = previousInProgressRef.current
+
+    if (inProgress > 0 || (previousInProgress > 0 && inProgress === 0)) {
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['documents'] }),
+        queryClient.invalidateQueries({ queryKey: ['document'] }),
+      ])
+    }
+
+    previousInProgressRef.current = inProgress
+  }, [inProgress, queryClient])
 
   const invalidateDashboardQueries = async () => {
     await Promise.all([

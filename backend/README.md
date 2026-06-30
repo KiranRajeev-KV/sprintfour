@@ -16,6 +16,24 @@ Default local API:
 http://localhost:8080
 ```
 
+Optional sidecar:
+
+```bash
+cd ../ner-sidecar
+uv sync
+env UV_CACHE_DIR=/tmp/uv-cache HF_HUB_DISABLE_XET=1 uv run uvicorn main:app --host 127.0.0.1 --port 8090
+```
+
+The sidecar loads `ner-sidecar/.env` automatically. With the current repo config, `uv sync` installs CPU-only PyTorch. Sidecar device selection is configured there:
+
+```text
+GLINER_DEVICE=cpu
+GLINER_QUANTIZE=false
+GLINER_COMPILE=false
+```
+
+If you later want GPU inference, replace the sidecar virtualenv torch install manually with a CUDA-enabled wheel before setting `GLINER_DEVICE=cuda`.
+
 ## Runtime model
 
 - The backend starts empty.
@@ -34,6 +52,13 @@ Current knobs:
 
 - `WORKER_COUNT`
 - `QUEUE_DEPTH`
+- `GLINER_ENABLED`
+- `GLINER_URL`
+- `GLINER_TIMEOUT_MS`
+- `GLINER_MAX_CONCURRENCY`
+
+Set `GLINER_ENABLED=true` to enable sidecar-backed `PERSON`, `ADDRESS`, `EMAIL`, and `PHONE` detections. If the sidecar is unavailable, the backend falls back to regex-only detection.
+`GLINER_MAX_CONCURRENCY` limits how many documents can be in GLiNER inference at once. Keep this low on a single machine to avoid memory spikes.
 
 ## API
 
@@ -71,7 +96,9 @@ Export:
 - `mode=replace` resets the active batch before loading new files.
 - `mode=append` keeps the existing batch and adds more files.
 - Upload reading is streamed part-by-part rather than whole-form parsed up front.
-- Runtime detection is deterministic and regex/rule-based.
+- Runtime detection is regex/rule-based by default.
+- Optional local GLiNER sidecar detection can be enabled over localhost HTTP.
+- When GLiNER is enabled, semantic labels (`PERSON`, `ADDRESS`, `EMAIL`, `PHONE`) come from the sidecar and structured identifiers stay regex-owned.
 - Clean uploads can become `CLEAN`.
 - Higher-confidence uploads can become `READY`.
 - Uncertain uploads become `NEEDS_REVIEW`.

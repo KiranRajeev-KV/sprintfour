@@ -1,5 +1,7 @@
 # Redactlane Upload Benchmark
 
+This benchmark is for pure regex detection only. It does not include the optional local GLiNER NER sidecar.
+
 Date: 2026-06-30
 
 ## Setup

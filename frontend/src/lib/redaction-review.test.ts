@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildHighlightRenderModel, sortRedactionsForReview } from '#/lib/redaction-review'
+import {
+  buildHighlightRenderModel,
+  groupRedactionsForReview,
+  sortRedactionsForReview,
+} from '#/lib/redaction-review'
 import type { Redaction } from '#/lib/schemas'
 
 describe('buildHighlightRenderModel', () => {
@@ -143,5 +147,71 @@ describe('buildHighlightRenderModel', () => {
 
     const sorted = [...redactions].sort(sortRedactionsForReview)
     expect(sorted.map((item) => item.id)).toEqual(['missed', 'added', 'accepted'])
+  })
+
+  it('groups duplicate terms by type and source for one-click review', () => {
+    const redactions: Redaction[] = [
+      {
+        id: 'gliner_1',
+        document_id: 'doc_1',
+        start: 0,
+        end: 9,
+        text: 'Purchaser',
+        type: 'PERSON',
+        confidence: 0.81,
+        reason: 'Detected person via local GLiNER sidecar',
+        source: 'gliner_local',
+        suggested_status: 'PENDING',
+        is_ground_truth: false,
+        review_state: 'PENDING',
+        reviewed_at: null,
+        reviewed_by: null,
+        is_user_added: false,
+        created_at: null,
+      },
+      {
+        id: 'gliner_2',
+        document_id: 'doc_1',
+        start: 22,
+        end: 31,
+        text: 'Purchaser',
+        type: 'PERSON',
+        confidence: 0.79,
+        reason: 'Detected person via local GLiNER sidecar',
+        source: 'gliner_local',
+        suggested_status: 'PENDING',
+        is_ground_truth: false,
+        review_state: 'PENDING',
+        reviewed_at: null,
+        reviewed_by: null,
+        is_user_added: false,
+        created_at: null,
+      },
+      {
+        id: 'regex_1',
+        document_id: 'doc_1',
+        start: 40,
+        end: 49,
+        text: 'Purchaser',
+        type: 'PERSON',
+        confidence: null,
+        reason: 'Runtime regex',
+        source: 'regex_candidate',
+        suggested_status: 'PENDING',
+        is_ground_truth: false,
+        review_state: 'PENDING',
+        reviewed_at: null,
+        reviewed_by: null,
+        is_user_added: false,
+        created_at: null,
+      },
+    ]
+
+    const groups = groupRedactionsForReview(redactions)
+
+    expect(groups).toHaveLength(2)
+    expect(groups[0]?.redactions.map((item) => item.id)).toEqual(['gliner_1', 'gliner_2'])
+    expect(groups[0]?.reviewStates.PENDING).toBe(2)
+    expect(groups[1]?.redactions.map((item) => item.id)).toEqual(['regex_1'])
   })
 })

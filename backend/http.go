@@ -18,6 +18,10 @@ type bulkDocumentsRequest struct {
 	DocumentIDs []string `json:"document_ids"`
 }
 
+type bulkRedactionsRequest struct {
+	RedactionIDs []string `json:"redaction_ids"`
+}
+
 type manualRedactionRequest struct {
 	Start        *int    `json:"start"`
 	End          *int    `json:"end"`
@@ -53,6 +57,8 @@ func NewRouter(logger *slog.Logger, store *Store) *gin.Engine {
 	router.POST("/api/documents/:id/redactions", server.addManualRedaction)
 	router.POST("/api/redactions/:id/accept", server.acceptRedaction)
 	router.POST("/api/redactions/:id/reject", server.rejectRedaction)
+	router.POST("/api/redactions/bulk-accept", server.bulkAcceptRedactions)
+	router.POST("/api/redactions/bulk-reject", server.bulkRejectRedactions)
 	router.POST("/api/documents/:id/approve", server.approveDocument)
 	router.POST("/api/documents/bulk-approve", server.bulkApproveDocuments)
 	router.POST("/api/documents/:id/retry", server.retryDocument)
@@ -427,6 +433,46 @@ func (s *Server) rejectRedaction(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+func (s *Server) bulkAcceptRedactions(c *gin.Context) {
+	request, ok := decodeBulkRedactionsRequest(c)
+	if !ok {
+		return
+	}
+
+	result, err := s.store.BulkAcceptRedactions(request.RedactionIDs, time.Now())
+	if err != nil {
+		s.writeMutationError(c, err)
+		return
+	}
+
+	s.logger.Info("redactions_bulk_accepted",
+		slog.Int("requested", result.Requested),
+		slog.Int("accepted", result.Accepted),
+		slog.Int("skipped", result.Skipped),
+	)
+	c.JSON(http.StatusOK, result)
+}
+
+func (s *Server) bulkRejectRedactions(c *gin.Context) {
+	request, ok := decodeBulkRedactionsRequest(c)
+	if !ok {
+		return
+	}
+
+	result, err := s.store.BulkRejectRedactions(request.RedactionIDs, time.Now())
+	if err != nil {
+		s.writeMutationError(c, err)
+		return
+	}
+
+	s.logger.Info("redactions_bulk_rejected",
+		slog.Int("requested", result.Requested),
+		slog.Int("rejected", result.Rejected),
+		slog.Int("skipped", result.Skipped),
+	)
+	c.JSON(http.StatusOK, result)
+}
+
 func (s *Server) approveDocument(c *gin.Context) {
 	result, err := s.store.ApproveDocument(c.Param("id"))
 	if err != nil {
@@ -638,6 +684,26 @@ func decodeBulkDocumentsRequest(c *gin.Context) (bulkDocumentsRequest, bool) {
 		cleanedIDs = append(cleanedIDs, documentID)
 	}
 	request.DocumentIDs = cleanedIDs
+	return request, true
+}
+
+func decodeBulkRedactionsRequest(c *gin.Context) (bulkRedactionsRequest, bool) {
+	var request bulkRedactionsRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		writeError(c, http.StatusBadRequest, "invalid_body", "invalid request body")
+		return bulkRedactionsRequest{}, false
+	}
+
+	cleanedIDs := make([]string, 0, len(request.RedactionIDs))
+	for _, redactionID := range request.RedactionIDs {
+		redactionID = strings.TrimSpace(redactionID)
+		if redactionID == "" {
+			writeError(c, http.StatusBadRequest, "invalid_body", "redaction_ids must not contain empty values")
+			return bulkRedactionsRequest{}, false
+		}
+		cleanedIDs = append(cleanedIDs, redactionID)
+	}
+	request.RedactionIDs = cleanedIDs
 	return request, true
 }
 

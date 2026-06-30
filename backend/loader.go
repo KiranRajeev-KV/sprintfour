@@ -246,7 +246,7 @@ func (r rawRedaction) toRedaction(lineNumber int) (*Redaction, error) {
 		End:             *r.End,
 		Text:            *r.Text,
 		Type:            *r.Type,
-		Confidence:      *r.Confidence,
+		Confidence:      r.Confidence,
 		Reason:          *r.Reason,
 		Source:          *r.Source,
 		SuggestedStatus: *r.SuggestedStatus,

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -92,6 +92,17 @@ const riskOptions: Array<{ label: string; value: RiskLevel | 'ALL' }> = [
 
 const pageSizeOptions = [25, 50, 100]
 
+const statusPriority: Record<DocumentStatus, number> = {
+  NEEDS_REVIEW: 0,
+  FAILED: 1,
+  PROCESSING: 2,
+  QUEUED: 3,
+  READY: 4,
+  CLEAN: 5,
+  APPROVED: 6,
+  EXPORTED: 7,
+}
+
 export function DocumentsTable({
   data,
   search,
@@ -108,7 +119,14 @@ export function DocumentsTable({
   isRetryPending,
   emptyStateMessage,
 }: DocumentsTableProps) {
-  const selectedItems = data.items.filter((document) => selectedIds[document.id])
+  const sortedItems = useMemo(
+    () =>
+      [...data.items].sort((left, right) => {
+        return statusPriority[left.status] - statusPriority[right.status]
+      }),
+    [data.items],
+  )
+  const selectedItems = sortedItems.filter((document) => selectedIds[document.id])
   const selectedCount = selectedItems.length
   const selectedQueuedCount = selectedItems.filter((document) => document.status === 'QUEUED').length
   const selectedProcessingCount = selectedItems.filter((document) => document.status === 'PROCESSING').length
@@ -119,7 +137,7 @@ export function DocumentsTable({
   const selectedApprovedCount = selectedItems.filter((document) => document.status === 'APPROVED').length
   const selectedExportedCount = selectedItems.filter((document) => document.status === 'EXPORTED').length
   const pageSelectedCount = selectedItems.length
-  const allPageSelected = data.items.length > 0 && pageSelectedCount === data.items.length
+  const allPageSelected = sortedItems.length > 0 && pageSelectedCount === sortedItems.length
   const somePageSelected = pageSelectedCount > 0 && !allPageSelected
 
   const columns: ColumnDef<DocumentListItem>[] = [
@@ -200,7 +218,7 @@ export function DocumentsTable({
   ]
 
   const table = useReactTable({
-    data: data.items,
+    data: sortedItems,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getRowId: (row) => row.id,
@@ -209,7 +227,7 @@ export function DocumentsTable({
   const currentPage = Math.floor(data.offset / data.limit) + 1
   const totalPages = Math.max(1, Math.ceil(data.total / data.limit))
   const start = data.total === 0 ? 0 : data.offset + 1
-  const end = Math.min(data.offset + data.items.length, data.total)
+  const end = Math.min(data.offset + sortedItems.length, data.total)
 
   return (
     <Card className="island-shell border-white/45 py-0">

@@ -30,27 +30,29 @@ type Job struct {
 }
 
 type WorkerPool struct {
-	store   *Store
-	jobs    chan *Job
-	size    int
-	wg      sync.WaitGroup
-	ctx     context.Context
-	cancel  context.CancelFunc
-	started bool
-	mu      sync.RWMutex
-	byID    map[string]*Job
-	jobSeq  int
+	store    *Store
+	detector Detector
+	jobs     chan *Job
+	size     int
+	wg       sync.WaitGroup
+	ctx      context.Context
+	cancel   context.CancelFunc
+	started  bool
+	mu       sync.RWMutex
+	byID     map[string]*Job
+	jobSeq   int
 }
 
-func NewWorkerPool(store *Store, workerCount, queueDepth int) *WorkerPool {
+func NewWorkerPool(store *Store, detector Detector, workerCount, queueDepth int) *WorkerPool {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &WorkerPool{
-		store:  store,
-		jobs:   make(chan *Job, queueDepth),
-		size:   workerCount,
-		ctx:    ctx,
-		cancel: cancel,
-		byID:   make(map[string]*Job),
+		store:    store,
+		detector: detector,
+		jobs:     make(chan *Job, queueDepth),
+		size:     workerCount,
+		ctx:      ctx,
+		cancel:   cancel,
+		byID:     make(map[string]*Job),
 	}
 }
 
@@ -147,7 +149,11 @@ func (p *WorkerPool) processJob(job *Job) {
 			}
 		}()
 
-		detections = detectRuntimeRedactions(job.text)
+		if p.detector == nil {
+			detections = detectRuntimeRedactions(job.text)
+			return
+		}
+		detections, execErr = p.detector.Detect(p.ctx, job.DocumentID, job.text)
 	}()
 
 	if execErr != nil {
