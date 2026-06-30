@@ -241,7 +241,7 @@ pre code {
 }
 
 .page-wrap {
-  width: min(1080px, calc(100% - 2rem));
+  width: min(90vw, 1680px);
   margin-inline: auto;
 }
 
