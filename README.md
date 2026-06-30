@@ -24,8 +24,8 @@ Redactlane is a batch-first anonymization workflow for high-volume case file rev
 
 Backend env files live in `backend/`:
 
-- [backend/.env](/home/kr/dev/sprintfour/backend/.env:1)
-- [backend/.env.example](/home/kr/dev/sprintfour/backend/.env.example:1)
+- [backend/.env](backend/.env)
+- [backend/.env.example](backend/.env.example)
 
 The backend loads `backend/.env` automatically at startup when present. Explicit process environment variables still override file values.
 
@@ -125,8 +125,8 @@ bun run test
 
 ### API and backend behavior
 
-Backend API and workflow details are documented in [backend/README.md](/home/kr/dev/sprintfour/backend/README.md:1).
+Backend API and workflow details are documented in [backend/README.md](backend/README.md).
 
 ### Benchmark
 
-Measured upload timings and dataset-size benchmarks are documented in [benchmark.md](/home/kr/dev/sprintfour/benchmark.md:1). The current benchmark document is for pure regex detection only, without the optional GLiNER sidecar.
+Measured upload timings and dataset-size benchmarks are documented in [benchmark.md](benchmark.md). The current benchmark document is for pure regex detection only, without the optional GLiNER sidecar.

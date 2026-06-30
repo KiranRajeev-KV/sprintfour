@@ -45,8 +45,8 @@ If you later want GPU inference, replace the sidecar virtualenv torch install ma
 
 Primary backend env files:
 
-- [backend/.env](/home/kr/dev/sprintfour/backend/.env:1)
-- [backend/.env.example](/home/kr/dev/sprintfour/backend/.env.example:1)
+- [.env](.env)
+- [.env.example](.env.example)
 
 Current knobs:
 
