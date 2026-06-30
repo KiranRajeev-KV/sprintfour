@@ -1,0 +1,110 @@
+-----Original Message-----
+From: alice.johnson@acmecorp.com
+To: bob.williams@legal-partners.com
+CC: legal-review@acmecorp.com, david.chen@acmecorp.com
+Subject: Engagement Letter — Project Helios
+Date: June 25, 2026 14:32:18 EDT
+
+Dear Bob,
+
+I am writing to finalize the engagement for Project Helios. Please
+find the executed engagement letter attached.
+
+Our authorized signatory for this matter is:
+
+Name: James T. Harrison
+Title: Chief Legal Officer
+Phone: (555) 234-8901
+Direct Line: (555) 234-8912
+Email: james.harrison@acmecorp.com
+
+Please send the countersigned copy to our office at:
+
+Acme Global Technologies, Inc.
+100 Innovation Drive, Suite 400
+San Francisco, CA 94105
+Attn: Legal Department
+
+Best regards,
+
+Alice Johnson
+VP of Legal Operations
+Acme Global Technologies, Inc.
+Phone: (555) 111-2222
+Email: alice.johnson@acmecorp.com
+
+-----Original Message-----
+From: bob.williams@legal-partners.com
+To: alice.johnson@acmecorp.com
+CC: sarah.connor@legal-partners.com
+Subject: Re: Engagement Letter — Project Helios
+Date: June 26, 2026 09:15:42 EDT
+
+Hi Alice,
+
+Thank you for sending this over. I have reviewed the terms and they
+look good. I will route this to Sarah Connor for signing.
+
+For our billing records, could you please confirm:
+
+1. Your company's EIN for our vendor setup?
+2. The correct billing address for invoices?
+
+In the meantime, our lead attorney on the matter will be:
+
+Name: Sarah Connor
+Bar Number: NY-5847291
+Direct: (212) 555-0199
+Email: sarah.connor@legal-partners.com
+
+Best,
+Bob Williams
+Partner, Williams & Associates
+(212) 555-0188
+
+-----Original Message-----
+From: alice.johnson@acmecorp.com
+To: bob.williams@legal-partners.com
+CC: accounts-payable@acmecorp.com
+Subject: Re: Engagement Letter — Project Helios
+Date: June 26, 2026 10:45:03 EDT
+
+Hi Bob,
+
+To answer your questions:
+
+1. Our EIN is 82-7654321.
+2. Please send invoices to accounts-payable@acmecorp.com, or by
+   mail to the address above, Attn: Accounts Payable.
+
+Our purchase order number for this engagement is PO-2026-84729.
+
+Thanks,
+Alice
+
+-----Original Message-----
+From: billing@legal-partners.com
+To: accounts-payable@acmecorp.com
+Subject: Invoice #INV-2026-4291 — Project Helios
+Date: June 27, 2026 08:00:00 EDT
+
+INVOICE
+
+To: Acme Global Technologies, Inc.
+    100 Innovation Drive, Suite 400
+    San Francisco, CA 94105
+    Attn: Accounts Payable
+
+Invoice: INV-2026-4291
+PO Number: PO-2026-84729
+Amount Due: $12,500.00
+Due Date: July 27, 2026
+
+Payment Instructions:
+  Bank: JPMorgan Chase
+  Account Name: Williams & Associates LLP IOLTA
+  Account Number: 100092837465
+  Routing Number: 021000021
+  Swift Code: CHASUS33XXX
+
+Please remit payment by the due date.

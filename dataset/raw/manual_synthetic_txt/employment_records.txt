@@ -1,0 +1,70 @@
+EMPLOYMENT RECORDS — CONFIDENTIAL
+Company: Acme Global Technologies, Inc.
+Address: 100 Innovation Drive, Suite 400, San Francisco, CA 94105
+
+EMPLOYEE PROFILE
+  Employee ID: EMP-2026-83746
+  Full Name: Kevin Michael Park
+  Preferred Name: Kevin Park
+  Date of Birth: April 17, 1994
+  SSN: 987-65-4321
+
+  Job Title: Senior Software Engineer
+  Department: Product Engineering — Platform Team
+  Level: IC4
+  Manager: Dr. Lisa Martinez, Director of Engineering
+  Work Location: San Francisco, CA (Hybrid)
+  Start Date: August 23, 2021
+  Employment Status: Active — Full Time
+  Employee Type: Exempt
+
+  Compensation:
+    Base Salary: $175,000.00 per year
+    Signing Bonus: $25,000.00 (paid August 2021)
+    Annual Performance Bonus Target: 15% of base salary
+    Equity: 5,000 RSUs (4-year vesting, 1-year cliff)
+    Last Merit Increase: 4.5% (effective January 2026)
+    Next Review Date: December 15, 2026
+
+  Emergency Contact:
+    Name: Sarah Park (Spouse)
+    Relationship: Married
+    Phone: (555) 345-6789
+    Email: sarah.park@example.com
+
+  Direct Deposit:
+    Bank: Wells Fargo
+    Account Number: 567839201847
+    Routing Number: 121000248
+
+  Benefits:
+    Health Insurance: Anthem Blue Cross PPO Plan (Employee + Spouse)
+    Dental: Delta Dental Premier
+    Vision: VSP Signature
+    401(k): Fidelity Investments — 6% contribution with 4% company match
+    Life Insurance: $500,000 (Company-paid)
+    Paid Time Off: 20 days accrued annually
+
+PREVIOUS EMPLOYMENT (as listed on application)
+  Employer: DataStream Technologies
+  Dates: March 2018 — July 2021
+  Title: Software Engineer II
+  Manager: Jennifer Walsh
+
+  Employer: CloudBase Solutions
+  Dates: June 2015 — February 2018
+  Title: Junior Developer
+  Manager: Mark Tanaka
+
+EMERGENCY CONTACTS — DEPARTMENT DIRECTORY
+  Lisa Martinez, Director of Engineering
+    Email: lisa.martinez@acmecorp.com
+    Phone: (555) 234-8901
+    Office: Suite 420, Building A
+
+  James Okonkwo, VP of Product
+    Email: james.okonkwo@acmecorp.com
+    Phone: (555) 678-9012
+    Cell: (555) 432-1098
+
+This document contains confidential HR data. Do not distribute externally.

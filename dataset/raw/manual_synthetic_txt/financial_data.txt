@@ -1,0 +1,59 @@
+FINANCIAL ACCOUNT SUMMARY
+Prepared for: David A. Thompson
+Date: June 15, 2026
+
+CREDIT CARDS
+  Visa: 4532 0151 1283 0366 | Exp: 08/28 | CVV: 456
+  Mastercard: 5425 2334 3010 9903 | Exp: 11/27 | CVV: 123
+  American Express: 3742 510187 20018 | Exp: 03/29 | CVV: 7890
+  Discover: 6011 0009 9130 0009 | Exp: 06/28 | CVV: 321
+  Visa Debit: 4916 1834 7290 5812 | Exp: 09/27 | CVV: 234
+
+BANK ACCOUNTS
+  Checking Account: Chase Bank
+    Account Number: 100092837465
+    Routing Number: 021000021
+    Type: Joint Checking
+
+  Savings Account: Bank of America
+    Account Number: 834756102938
+    Routing Number: 026009593
+    Type: High Yield Savings
+
+  Money Market: Wells Fargo
+    Account Number: 567839201847
+    Routing Number: 121000248
+
+INTERNATIONAL ACCOUNTS
+  IBAN: GB29 NWBK 6016 1331 9268 19
+  SWIFT/BIC: NWBKGB2L
+  IBAN (Germany): DE89 3704 0044 0532 0130 00
+  BIC: COBADEFFXXX
+
+INVESTMENT ACCOUNTS
+  Brokerage: Fidelity Investments
+    Account Number: 835-492671-09
+    Roth IRA: 835-291845-03
+
+  Brokerage: Vanguard
+    Account Number: 4928173654
+    Fund: VTSAX — Total Stock Market Index
+
+  Cryptocurrency Exchange: Coinbase
+    Account ID: 2a8f3c91-e7b4-4d2a-b915-6f1c8a3d7e02
+    BTC Wallet: 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
+
+LOANS
+  Mortgage: 382915473
+    Lender: Quicken Loans
+    Original Amount: $425,000.00
+    Remaining Balance: $387,291.45
+
+  Auto Loan: AUL-2024-837462
+    Lender: Capital One Auto Finance
+    Monthly Payment: $487.23
+
+TAX IDENTIFIERS
+  SSN: 987-65-4321
+  EIN: 82-7654321
+  ITIN: 912-34-5678

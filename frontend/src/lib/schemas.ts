@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
 export const documentStatusSchema = z.enum([
+  'QUEUED',
+  'PROCESSING',
   'READY',
   'NEEDS_REVIEW',
   'FAILED',
@@ -26,13 +28,37 @@ export const piiTypeSchema = z.enum([
   'CASE_ID',
   'CLIENT_ID',
   'BANK_ACCOUNT',
+  'ROUTING_NUMBER',
   'PAN_LIKE_ID',
+  'DOB',
   'DATE_OF_BIRTH',
   'ORGANIZATION_CONTACT',
+  'SSN',
+  'EIN',
+  'ITIN',
+  'CREDIT_CARD',
+  'US_PHONE',
+  'MAC_ADDRESS',
+  'IP_ADDRESS',
+  'IBAN',
+  'SWIFT_BIC',
+  'AADHAAR',
+  'MRN',
+  'PATIENT_ID',
+  'PASSPORT',
+  'NPI',
+  'DEA',
+  'API_KEY',
+  'US_DRIVER_LICENSE',
+  'MEDICAL_LICENSE',
+  'DOMAIN_NAME',
+  'URL',
 ])
 
 export const batchSummarySchema = z.object({
   total_documents: z.number().int().nonnegative(),
+  queued: z.number().int().nonnegative(),
+  processing: z.number().int().nonnegative(),
   ready: z.number().int().nonnegative(),
   needs_review: z.number().int().nonnegative(),
   failed: z.number().int().nonnegative(),
@@ -157,6 +183,8 @@ export const exportSummarySchema = z.object({
   skipped_rejected_redactions: z.number().int().nonnegative().optional(),
   skipped_pending_redactions: z.number().int().nonnegative().optional(),
   skipped_overlap_redactions: z.number().int().nonnegative().optional(),
+  output_dir: z.string().min(1).optional(),
+  files: z.array(z.string()).optional(),
   created_at: z.string().min(1),
 })
 
@@ -177,6 +205,8 @@ export const latestExportResponseSchema = z.discriminatedUnion('has_export', [
     skipped_rejected_redactions: z.number().int().nonnegative().optional(),
     skipped_pending_redactions: z.number().int().nonnegative().optional(),
     skipped_overlap_redactions: z.number().int().nonnegative().optional(),
+    output_dir: z.string().min(1).optional(),
+    files: z.array(z.string()).optional(),
     created_at: z.string().min(1),
   }),
 ])
@@ -232,7 +262,7 @@ export const documentSearchSchema = z.object({
   status: documentStatusSchema.optional(),
   risk: riskLevelSchema.optional(),
   q: z.string().optional(),
-  limit: z.number().int().positive().max(100),
+  limit: z.number().int().positive().max(200),
   offset: z.number().int().nonnegative(),
 })
 

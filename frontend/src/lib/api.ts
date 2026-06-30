@@ -88,6 +88,11 @@ export function batchSummaryQueryOptions() {
   return queryOptions({
     queryKey: ['batch-summary'],
     queryFn: () => requestJSON('/api/batch/summary', batchSummarySchema),
+    refetchInterval: (query) => {
+      const data = query.state.data
+      if (data && (data.queued > 0 || data.processing > 0)) return 2000
+      return false
+    },
   })
 }
 
@@ -134,6 +139,22 @@ export function latestExportQueryOptions() {
   return queryOptions({
     queryKey: ['latest-export'],
     queryFn: () => requestJSON('/api/export/latest', latestExportResponseSchema),
+  })
+}
+
+export function reviewQueueQueryOptions() {
+  const search = {
+    status: 'NEEDS_REVIEW' as const,
+    risk: undefined,
+    q: '',
+    limit: 200,
+    offset: 0,
+  }
+  const queryString = buildDocumentsQueryString(search)
+  return queryOptions({
+    queryKey: ['documents', queryString],
+    queryFn: () =>
+      requestJSON(`/api/documents?${queryString}`, documentListResponseSchema),
   })
 }
 

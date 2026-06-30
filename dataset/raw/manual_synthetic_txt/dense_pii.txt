@@ -1,0 +1,59 @@
+HIGHLY DENSE PII — STRESS TEST
+This file concentrates many PII entities in a short space to
+test the system's ability to detect overlapping or adjacent PII.
+
+RECORD 1: John Michael Smith, DOB 01/15/1980, SSN 987-65-4321,
+lives at 742 Willow Creek Drive, Apt 3B, Springfield, IL 62704.
+His email is john.smith@example.com and his phone is (555) 234-8901.
+Visa ending 0366, bank account 100092837465 (routing 021000021).
+Passport 561234567, DL IL-D876-5432-9876, patient ID PAT-2026-0047291.
+
+RECORD 2: Patricia A. Williamson, DOB 03/22/1955, SSN 987-65-4321,
+email patricia.williamson@example.com, phone (555) 891-2345,
+address 1824 Cedar Lane, Unit 7, Evanston, IL 60201. Insurance
+BCBS-IL-8876543, MRN MRN-837465912, Visa 4532-0151-1283-0366,
+bank acct 567839201847 (routing 026009593). DOB 03/22/1955.
+
+RECORD 3: Kevin M. Park, EMP-2026-83746, SSN 987-65-4321,
+DOB 04/17/1994, email kevin.park@acmecorp.com, phone (555) 345-6789,
+address 2847 Pacific Heights Road, Los Angeles, CA 90077.
+Salary $175,000, bank account 567839201847, routing 121000248.
+GitHub: kmpark-dev, AWS: AKIA2EXAMPLE000000001, IP: 10.24.83.147.
+
+RECORD 4: David A. Thompson, SSN 987-65-4321, DOB 09/08/1965,
+phone (555) 342-8976, email david.thompson@example.com,
+lives at 1842 Magnolia Drive, Oak Brook, IL 60523. Chase acct
+100092837465, MTG-2026-8472910, policy POL-2026-847291-01,
+Visa 4532-0151-1283-0366 exp 08/28 CVV 456.
+
+RECORD 5: Dr. Emily Chen, NPI 1928473625, DEA MF8372914,
+CA Med Lic A182736, email emily.chen@mercy-hospital.com,
+phone (312) 555-7890, SSN 987-65-4321, DOB 09/12/1978,
+address 5000 Oakwood Avenue, Chicago, IL 60610.
+
+RECORD 6: ACME GLOBAL TECHNOLOGIES, INC.
+EIN 36-4829102, 100 Innovation Drive, Suite 400, San Francisco,
+CA 94105. Contact: Alice Johnson, alice.johnson@acmecorp.com,
+(555) 111-2222. PO-2026-84729, acct 100092837465 (Chase),
+routing 021000021, SWIFT CHASUS33XXX.
+
+RECORD 7: Robert J. Williams, Esq., Bar #8372910,
+456 Montgomery Street, Suite 1200, San Francisco, CA 94104,
+(415) 555-0200, rwilliams@williams-associates.com.
+Client: Harrison v. Nova Pharma (CASE CGC-26-5847291).
+IOLTA acct 100092837465, routing 021000021. EIN 36-4829102.
+
+RECORD 8: James Whitmore, +44 20 7946 0958, +44 7700 900482,
+james.whitmore@example.co.uk, NI QQ 12 34 56 C, NHS 943 476 5912,
+42 Baker Street, Flat 3B, London NW1 6XE. Sort 60-16-13,
+acct 12345678, IBAN GB29 NWBK 6016 1331 9268 19.
+
+RECORD 9: Priya Krishnamurthy, +91 98765 43210,
+priya.krishnamurthy@example.in, Aadhaar 2345 6789 0123,
+PAN ABCDE1234F, DOB 15/03/1991, 42 Brigade Road, Ashok Nagar,
+Bengaluru 560025. Passport Z1234567, Voter ID ABC1234567.
+
+RECORD 10: API keys: sk_live_4eC39HqLyjWDarjtT7zdp,
+ghp_xyzABCD1234567890abcdef, AKIA2EXAMPLE000000001.
+Servers: 10.24.83.147, 172.16.20.45, 203.0.113.42.
+MAC: 00:1A:2B:3C:4D:5E, IPv6: 2001:0db8:85a3::8a2e:0370:7334.

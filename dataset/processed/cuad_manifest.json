@@ -1,9 +1,0 @@
-{
-  "dataset_name": "CUAD_v1",
-  "source_url_used": "https://zenodo.org/records/4595826/files/CUAD_v1.zip?download=1",
-  "source_txt_files_found": 510,
-  "records_written": 220,
-  "generated_at": "2026-06-30T06:38:09.779226+00:00",
-  "text_truncated": true,
-  "max_characters_per_document": 20000
-}

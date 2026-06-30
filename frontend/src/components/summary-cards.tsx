@@ -1,9 +1,11 @@
 import {
   AlertTriangle,
   CheckCircle2,
+  Clock,
   FileCheck2,
   FileOutput,
   Files,
+  LoaderCircle,
   ShieldAlert,
   Waypoints,
 } from 'lucide-react'
@@ -29,23 +31,23 @@ const cards: SummaryCardConfig[] = [
   {
     key: 'total_documents',
     label: 'Total documents',
-    detail: 'Batch size loaded into the command center',
+    detail: 'Batch size currently loaded into Redactlane',
     icon: Files,
     tone: 'border-white/70 bg-white/80',
   },
   {
-    key: 'needs_review',
-    label: 'Needs review',
-    detail: 'Open exceptions Maya should triage first',
-    icon: ShieldAlert,
-    tone: 'border-amber-500/30 bg-amber-500/18',
+    key: 'processing',
+    label: 'Processing',
+    detail: 'Documents currently being analyzed by the worker pool',
+    icon: LoaderCircle,
+    tone: 'border-blue-400/30 bg-blue-400/14',
   },
   {
-    key: 'failed',
-    label: 'Failed',
-    detail: 'Detection failures to retry in a later step',
-    icon: AlertTriangle,
-    tone: 'border-rose-500/30 bg-rose-500/16',
+    key: 'needs_review',
+    label: 'Needs review',
+    detail: 'Open exception files that need focused review first',
+    icon: ShieldAlert,
+    tone: 'border-amber-500/30 bg-amber-500/18',
   },
   {
     key: 'ready',
@@ -54,12 +56,19 @@ const cards: SummaryCardConfig[] = [
     icon: CheckCircle2,
     tone: 'border-emerald-500/30 bg-emerald-500/14',
   },
+  {
+    key: 'failed',
+    label: 'Failed',
+    detail: 'Detection failures to retry in a later step',
+    icon: AlertTriangle,
+    tone: 'border-rose-500/30 bg-rose-500/16',
+  },
 ]
 
 export function SummaryCards({ summary }: { summary: BatchSummary }) {
   return (
     <section className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
         {cards.map((card) => {
           const Icon = card.icon
           const value = summary[card.key]
@@ -104,7 +113,8 @@ export function SummaryCards({ summary }: { summary: BatchSummary }) {
             crowding the main command row.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 px-5 py-4 sm:grid-cols-2 xl:grid-cols-5">
+        <CardContent className="grid gap-4 px-5 py-4 sm:grid-cols-2 xl:grid-cols-6">
+          <SecondaryStat icon={Clock} label="Queued" value={summary.queued} />
           <SecondaryStat
             icon={FileCheck2}
             label="Approved"

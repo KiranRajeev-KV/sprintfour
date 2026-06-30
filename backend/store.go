@@ -156,10 +156,10 @@ func (s *Store) resetForUploadLocked() {
 
 func (s *Store) UploadDocuments(mode string, inputs []UploadedDocumentInput, now time.Time) (UploadBatchResult, error) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	mode = normalizeUploadMode(mode)
 	if mode != "replace" && mode != "append" {
+		s.mu.Unlock()
 		return UploadBatchResult{}, &ValidationError{
 			Code:    "invalid_mode",
 			Message: "upload mode must be replace or append",
@@ -178,28 +178,17 @@ func (s *Store) UploadDocuments(mode string, inputs []UploadedDocumentInput, now
 		Items:    make([]UploadItemResult, 0, len(inputs)),
 	}
 
+	queuedDocs := make([]*Document, 0, len(inputs))
 	for _, input := range inputs {
-		document, redactions := s.buildUploadArtifactsLocked(input)
+		doc := s.CreateUploadDocument(input)
 
-		s.documents = append(s.documents, document)
-		s.documentsByID[document.ID] = document
-		s.documentRuneLengths[document.ID] = len([]rune(document.Text))
-		s.runtimeByDocID[document.ID] = DocumentRuntimeState{
-			Status: normalizeStatus(document.Status),
-		}
-
-		for _, redaction := range redactions {
-			s.redactionsByDoc[document.ID] = append(s.redactionsByDoc[document.ID], redaction)
-			s.redactionsByID[redaction.ID] = redaction
-			s.redactionRuntimeByID[redaction.ID] = initialRedactionRuntimeState(redaction)
-		}
-
+		queuedDocs = append(queuedDocs, doc)
 		result.Accepted++
 		result.DocumentsCreated++
-		result.RedactionsCreated += len(redactions)
-		status := normalizeStatus(document.Status)
-		risk := normalizeRisk(document.RiskLevel)
-		documentID := document.ID
+
+		status := "QUEUED"
+		risk := "UNKNOWN"
+		documentID := doc.ID
 		relativePath := nullableString(input.RelativePath)
 		result.Items = append(result.Items, UploadItemResult{
 			Filename:       input.Filename,
@@ -207,24 +196,33 @@ func (s *Store) UploadDocuments(mode string, inputs []UploadedDocumentInput, now
 			DocumentID:     &documentID,
 			Status:         &status,
 			RiskLevel:      &risk,
-			RedactionCount: len(redactions),
+			RedactionCount: 0,
 			Accepted:       true,
 			Reason:         "uploaded",
 		})
+	}
+
+	s.mu.Unlock()
+
+	// Submit jobs to worker pool for async processing
+	if workerPool != nil {
+		for _, doc := range queuedDocs {
+			workerPool.Submit(doc.ID, doc.Text)
+		}
 	}
 
 	result.Rejected = result.Uploaded - result.Accepted
 	return result, nil
 }
 
-func (s *Store) buildUploadArtifactsLocked(input UploadedDocumentInput) (*Document, []*Redaction) {
+func (s *Store) CreateUploadDocument(input UploadedDocumentInput) *Document {
 	s.uploadDocumentSeq++
 	documentID := formatUploadDocumentID(s.uploadDocumentSeq)
 	sourceFile := input.Filename
 	if strings.TrimSpace(input.RelativePath) != "" {
 		sourceFile = input.RelativePath
 	}
-	document := &Document{
+	doc := &Document{
 		ID:                   documentID,
 		Title:                titleFromFilename(input.Filename),
 		Source:               "USER_UPLOAD_TXT",
@@ -232,38 +230,93 @@ func (s *Store) buildUploadArtifactsLocked(input UploadedDocumentInput) (*Docume
 		Text:                 input.Text,
 		CharCount:            len([]rune(input.Text)),
 		SyntheticPIIInjected: false,
+		Status:               "QUEUED",
+		RiskLevel:            "UNKNOWN",
+	}
+	s.documents = append(s.documents, doc)
+	s.documentsByID[doc.ID] = doc
+	s.documentRuneLengths[doc.ID] = len([]rune(doc.Text))
+	s.runtimeByDocID[doc.ID] = DocumentRuntimeState{
+		Status: "QUEUED",
+	}
+	return doc
+}
+
+func (s *Store) SetDocumentProcessing(documentID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	state := s.runtimeByDocID[documentID]
+	state.Status = "PROCESSING"
+	s.runtimeByDocID[documentID] = state
+}
+
+func (s *Store) SetDocumentProcessed(documentID string, detections []runtimeDetection) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	doc, ok := s.documentsByID[documentID]
+	if !ok {
+		return ErrDocumentNotFound
 	}
 
-	detections := detectRuntimeRedactions(input.Text)
 	redactions := make([]*Redaction, 0, len(detections))
-	for _, detection := range detections {
+	for _, d := range detections {
 		s.generatedRedactionSeq++
 		redactions = append(redactions, &Redaction{
 			ID:              formatGeneratedRedactionID(s.generatedRedactionSeq),
 			DocumentID:      documentID,
-			Start:           detection.Start,
-			End:             detection.End,
-			Text:            detection.Text,
-			Type:            detection.Type,
-			Confidence:      detection.Confidence,
-			Reason:          detection.Reason,
-			Source:          detection.Source,
-			SuggestedStatus: detection.SuggestedStatus,
+			Start:           d.Start,
+			End:             d.End,
+			Text:            d.Text,
+			Type:            d.Type,
+			Confidence:      d.Confidence,
+			Reason:          d.Reason,
+			Source:          d.Source,
+			SuggestedStatus: d.SuggestedStatus,
 			IsGroundTruth:   false,
 		})
 	}
 
 	status, risk := classifyUploadedDocument(redactions)
-	document.Status = status
-	document.RiskLevel = risk
-	document.RedactionCount = len(redactions)
-	for _, redaction := range redactions {
-		if redaction.Confidence < lowConfidenceThreshold {
-			document.LowConfidenceCount++
+	doc.Status = status
+	doc.RiskLevel = risk
+	doc.RedactionCount = len(redactions)
+	doc.PIICount = len(redactions)
+	for _, r := range redactions {
+		if r.Confidence < lowConfidenceThreshold {
+			doc.LowConfidenceCount++
 		}
 	}
-	document.PIICount = len(redactions)
-	return document, redactions
+
+	s.redactionsByDoc[documentID] = append(s.redactionsByDoc[documentID], redactions...)
+	for _, r := range redactions {
+		s.redactionsByID[r.ID] = r
+		s.redactionRuntimeByID[r.ID] = initialRedactionRuntimeState(r)
+	}
+
+	state := s.runtimeByDocID[documentID]
+	state.Status = status
+	s.runtimeByDocID[documentID] = state
+
+	return nil
+}
+
+func (s *Store) SetDocumentFailed(documentID string, errMsg string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	doc, ok := s.documentsByID[documentID]
+	if !ok {
+		return
+	}
+
+	doc.Status = "FAILED"
+	doc.RiskLevel = "HIGH"
+
+	state := s.runtimeByDocID[documentID]
+	state.Status = "FAILED"
+	state.FailureHint = &errMsg
+	s.runtimeByDocID[documentID] = state
 }
 
 func (s *Store) Summary() BatchSummary {
@@ -281,6 +334,10 @@ func (s *Store) Summary() BatchSummary {
 			summary.BlockingReviewDocuments++
 		}
 		switch normalizeStatus(state.Status) {
+		case "QUEUED":
+			summary.Queued++
+		case "PROCESSING":
+			summary.Processing++
 		case "READY":
 			summary.Ready++
 		case "NEEDS_REVIEW":
@@ -428,6 +485,16 @@ func (s *Store) ApproveDocument(documentID string) (DocumentMutationResult, erro
 	}
 
 	switch state.Status {
+	case "QUEUED":
+		return DocumentMutationResult{}, &StateConflictError{
+			Code:    "not_processed",
+			Message: "document is still queued for processing",
+		}
+	case "PROCESSING":
+		return DocumentMutationResult{}, &StateConflictError{
+			Code:    "not_processed",
+			Message: "document is still being processed",
+		}
 	case "FAILED":
 		return DocumentMutationResult{}, &StateConflictError{
 			Code:    "failed_requires_retry",
@@ -751,6 +818,8 @@ func (s *Store) ExportApprovedDocuments(now time.Time) (ExportSummary, bool, err
 			Failed:                  s.countDocumentsByStatusLocked("FAILED"),
 			Ready:                   s.countDocumentsByStatusLocked("READY"),
 			ApprovedBlockedByReview: approvedBlockedByReview,
+			OutputDir:               exportOutputDir,
+			Files:                   []string{},
 			CreatedAt:               now.UTC().Format(time.RFC3339),
 			Documents:               []ExportedDocument{},
 		}
@@ -801,6 +870,8 @@ func (s *Store) ExportApprovedDocuments(now time.Time) (ExportSummary, bool, err
 		SkippedRejected:         stats.skippedRejected,
 		SkippedPending:          stats.skippedPending,
 		SkippedOverlap:          stats.skippedOverlap,
+		OutputDir:               exportOutputDir,
+		Files:                   collectExportOutputFilenames(exportedDocuments),
 		CreatedAt:               now.UTC().Format(time.RFC3339),
 		Documents:               exportedDocuments,
 	}
@@ -1134,9 +1205,23 @@ func formatManualRedactionID(sequence int) string {
 	return fmt.Sprintf("user_red_%06d", sequence)
 }
 
+func collectExportOutputFilenames(documents []ExportedDocument) []string {
+	files := make([]string, 0, len(documents))
+	for _, document := range documents {
+		if document.OutputFilename == "" {
+			continue
+		}
+		files = append(files, document.OutputFilename)
+	}
+	return files
+}
+
 func isAllowedRedactionType(value string) bool {
 	switch strings.ToUpper(strings.TrimSpace(value)) {
-	case "PERSON", "EMAIL", "PHONE", "ADDRESS", "CASE_ID", "CLIENT_ID", "BANK_ACCOUNT", "PAN_LIKE_ID", "DATE_OF_BIRTH", "ORGANIZATION_CONTACT":
+	case "PERSON", "EMAIL", "PHONE", "ADDRESS", "CASE_ID", "CLIENT_ID", "BANK_ACCOUNT", "PAN_LIKE_ID", "DATE_OF_BIRTH", "ORGANIZATION_CONTACT",
+		"SSN", "EIN", "ITIN", "CREDIT_CARD", "US_PHONE", "MAC_ADDRESS", "IP_ADDRESS",
+		"IBAN", "SWIFT_BIC", "AADHAAR", "MRN", "PATIENT_ID", "API_KEY",
+		"US_DRIVER_LICENSE", "MEDICAL_LICENSE", "DOMAIN_NAME", "URL":
 		return true
 	default:
 		return false

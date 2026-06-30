@@ -7,12 +7,41 @@ import (
 	"strings"
 )
 
-var exportOutputDir = filepath.Clean("../exported")
+var exportOutputDir = defaultExportOutputDir()
+
+func defaultExportOutputDir() string {
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return filepath.Clean("../exported")
+	}
+
+	for dir := workingDir; ; dir = filepath.Dir(dir) {
+		if isRepoRoot(dir) {
+			return filepath.Join(dir, "exported")
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+	}
+
+	if filepath.Base(workingDir) == "backend" {
+		return filepath.Join(filepath.Dir(workingDir), "exported")
+	}
+	return filepath.Join(workingDir, "exported")
+}
+
+func isRepoRoot(dir string) bool {
+	if info, err := os.Stat(filepath.Join(dir, "backend")); err != nil || !info.IsDir() {
+		return false
+	}
+	if info, err := os.Stat(filepath.Join(dir, "frontend")); err != nil || !info.IsDir() {
+		return false
+	}
+	return true
+}
 
 func writeExportedDocuments(documents []ExportedDocument) error {
-	if err := os.RemoveAll(exportOutputDir); err != nil {
-		return fmt.Errorf("reset export directory: %w", err)
-	}
 	if err := os.MkdirAll(exportOutputDir, 0o755); err != nil {
 		return fmt.Errorf("create export directory: %w", err)
 	}

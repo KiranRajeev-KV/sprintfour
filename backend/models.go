@@ -87,6 +87,8 @@ type RedactionSnapshot struct {
 
 type BatchSummary struct {
 	TotalDocuments           int `json:"total_documents"`
+	Queued                   int `json:"queued"`
+	Processing               int `json:"processing"`
 	Ready                    int `json:"ready"`
 	NeedsReview              int `json:"needs_review"`
 	Failed                   int `json:"failed"`
@@ -160,6 +162,8 @@ type ExportSummary struct {
 	SkippedRejected         int                `json:"skipped_rejected_redactions"`
 	SkippedPending          int                `json:"skipped_pending_redactions"`
 	SkippedOverlap          int                `json:"skipped_overlap_redactions"`
+	OutputDir               string             `json:"output_dir"`
+	Files                   []string           `json:"files"`
 	CreatedAt               string             `json:"created_at"`
 	Documents               []ExportedDocument `json:"-"`
 }

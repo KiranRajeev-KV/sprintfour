@@ -1,0 +1,70 @@
+INVOICE
+
+Invoice Number: INV-2026-18472
+Invoice Date: June 27, 2026
+Payment Terms: Net 30
+Due Date: July 27, 2026
+
+FROM:
+  Williams & Associates LLP
+  456 Montgomery Street, Suite 1200
+  San Francisco, CA 94104
+  Phone: (415) 555-0200
+  Email: billing@williams-associates.com
+  EIN: 36-4829102
+
+TO:
+  Acme Global Technologies, Inc.
+  100 Innovation Drive, Suite 400
+  San Francisco, CA 94105
+  Attn: Accounts Payable
+  Email: accounts-payable@acmecorp.com
+
+  Contact: Alice Johnson
+  Title: VP of Legal Operations
+  Email: alice.johnson@acmecorp.com
+  Direct: (555) 111-2222
+
+PURCHASE ORDER: PO-2026-84729
+MATTER: Harrison v. Nova Pharma — Defense
+CLIENT REF: CLIENT-2026-0483
+
+DESCRIPTION                              HOURS     RATE        AMOUNT
+Professional legal services (June 2026)
+  Robert J. Williams, Esq.               12.5    $750.00     $9,375.00
+  Maria Santos, Paralegal                 8.0    $250.00     $2,000.00
+  Document review — associate             6.5    $400.00     $2,600.00
+Filing fees (Superior Court)                         —        $450.00
+Service of process                                 —        $175.00
+
+                                              SUBTOTAL     $14,600.00
+                                              SALES TAX        $0.00
+                                              TOTAL DUE    $14,600.00
+
+PAYMENT INSTRUCTIONS:
+  Wire Transfer / ACH:
+    Bank: JPMorgan Chase Bank, N.A.
+    Address: 270 Park Avenue, New York, NY 10017
+    Account Name: Williams & Associates LLP IOLTA
+    Account Number: 100092837465
+    Routing Number (ABA): 021000021
+    Swift Code: CHASUS33XXX
+
+  Check Payments:
+    Payable to: Williams & Associates LLP
+    Mail to: 456 Montgomery Street, Suite 1200
+             San Francisco, CA 94104
+
+  Credit Card:
+    We accept Visa, Mastercard, and American Express.
+    Please contact billing for secure payment link.
+
+  Late Payment:
+    Accounts unpaid after 30 days will incur a 1.5% monthly
+    finance charge (18% APR).
+
+For billing inquiries, please contact:
+  Maria Santos
+  Billing Specialist
+  msantos@williams-associates.com
+  Direct: (415) 555-0215

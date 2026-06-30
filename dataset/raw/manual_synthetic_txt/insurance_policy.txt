@@ -1,0 +1,79 @@
+INSURANCE POLICY DECLARATIONS PAGE
+Policy Number: POL-2026-847291-01
+Effective Date: January 1, 2026
+Expiration Date: December 31, 2026
+
+INSURED PARTY
+  Name: David Alan Thompson
+  Date of Birth: September 8, 1965
+  SSN: 987-65-4321
+  Occupation: Architect
+  Employer: Thompson & Associates Architecture
+
+  Primary Residence:
+    1842 Magnolia Drive
+    Oak Brook, IL 60523
+    United States
+
+  Mailing Address (if different):
+    PO Box 4927
+    Oak Brook, IL 60523
+
+POLICY HOLDER CONTACT
+  Phone: (555) 342-8976
+  Cell: (555) 891-2345
+  Email: david.thompson@example.com
+
+SPOUSE / ADDITIONAL INSURED
+  Name: Karen Elizabeth Thompson
+  Date of Birth: March 22, 1967
+  SSN: 927-48-5613
+  Relationship: Spouse
+
+DEPENDENTS / BENEFICIARIES
+  1. Name: Emily Rose Thompson
+     DOB: June 14, 1998
+     Relationship: Daughter
+     SSN: 837-49-2615
+     Beneficiary Percentage: 50%
+
+  2. Name: Michael James Thompson
+     DOB: November 3, 2001
+     Relationship: Son
+     SSN: 927-41-8367
+     Beneficiary Percentage: 50%
+
+COVERAGE DETAILS
+
+Auto Insurance (Policy: AUTO-IL-847291)
+  Vehicle 1: 2023 Toyota RAV4 Hybrid — VIN: 2T3H4RFV9PW123456
+    Liability: $300,000/$500,000
+    Comprehensive: $500 deductible
+    Collision: $500 deductible
+  Vehicle 2: 2022 Ford F-150 — VIN: 1FTFW1E83NFA78901
+    Liability: $300,000/$500,000
+    Comprehensive: $1,000 deductible
+    Collision: $1,000 deductible
+
+Homeowners Insurance (Policy: HOME-IL-847291)
+  Property Address: 1842 Magnolia Drive, Oak Brook, IL 60523
+  Dwelling Coverage: $625,000
+  Personal Property: $375,000
+  Liability: $500,000
+  Deductible: $2,500
+  Flood Insurance: Included (Flood zone AE)
+
+Life Insurance (Policy: LIFE-IL-847291)
+  Type: 20-Year Term
+  Face Amount: $1,000,000.00
+  Annual Premium: $1,247.50
+  Owner: David Alan Thompson
+  Primary Beneficiary: Karen Elizabeth Thompson (100%)
+  Contingent: Per stirpes to surviving issue
+
+AGENT INFORMATION
+  Agent Name: Michael R. O'Brien
+  Agency: O'Brien Insurance Group
+  License Number: CA-0I12345
+  Phone: (555) 234-5678
+  Email: mobrien@obrieninsurance.com

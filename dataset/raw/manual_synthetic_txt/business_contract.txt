@@ -1,0 +1,81 @@
+SERVICES AGREEMENT
+
+This SERVICES AGREEMENT (the "Agreement") is made and entered
+into on this 15th day of June, 2026 (the "Effective Date"), by
+and between:
+
+Provider:
+  DataStream Solutions, Inc.
+  A Delaware corporation
+  1800 Technology Parkway, Suite 200
+  San Jose, CA 95110
+  EIN: 82-7654321
+
+  Contact: James Okonkwo
+  Title: VP of Engineering
+  Email: james.okonkwo@datastream.com
+  Phone: (408) 555-0199
+
+Client:
+  Acme Global Technologies, Inc.
+  A Delaware corporation
+  100 Innovation Drive, Suite 400
+  San Francisco, CA 94105
+  EIN: 36-4829102
+
+  Contact: Alice Johnson
+  Title: VP of Legal Operations
+  Email: alice.johnson@acmecorp.com
+  Phone: (555) 111-2222
+
+(Each a "Party" and collectively the "Parties")
+
+SCOPE OF SERVICES
+Provider agrees to deliver the cloud infrastructure services
+described in Exhibit A attached hereto (the "Services").
+
+FEES AND PAYMENT
+  1. Setup Fee: $25,000.00 (one-time)
+  2. Monthly Service Fee: $12,500.00
+  3. Overage Rate: $0.15 per GB over 500 GB monthly
+
+  Payment Terms: Net 30 from date of invoice
+  Late Payment Interest: 1.5% per month (18% APR)
+
+  Payment Method: ACH Transfer
+  Bank: Silicon Valley Bank
+  Account Name: DataStream Solutions, Inc.
+  Account Number: 10029384756
+  Routing Number: 121140399
+
+TERM AND TERMINATION
+  Initial Term: 24 months from Effective Date
+  Auto-Renewal: 12-month terms unless 90 days written notice
+
+INDEMNIFICATION
+Each Party agrees to indemnify and hold harmless the other Party
+from claims arising out of the indemnifying Party's breach.
+
+GOVERNING LAW
+This Agreement shall be governed by the laws of the State of
+California. Any disputes shall be resolved in the courts of
+San Francisco County.
+
+IN WITNESS WHEREOF, the Parties have executed this Agreement
+as of the date first written above.
+
+DATASTREAM SOLUTIONS, INC.          ACME GLOBAL TECHNOLOGIES, INC.
+
+By: ___________________________     By: ___________________________
+Name: James Okonkwo                 Name: Alice Johnson
+Title: VP of Engineering            Title: VP of Legal Operations
+Date: June 15, 2026                 Date: June 15, 2026
+
+EXHIBIT A — SERVICES DESCRIPTION
+
+DataStream Solutions will provide:
+  - Managed Kubernetes cluster (AWS EKS)
+  - PostgreSQL database hosting
+  - 500 GB SSD storage
+  - 99.95% uptime SLA
+  - 24/7 support with 1-hour response time

@@ -1,0 +1,70 @@
+ACCOUNT CREDENTIALS AND DIGITAL IDENTIFIERS
+System: Password Vault Export
+Generated: June 28, 2026
+
+USER ACCOUNTS
+  Platform: GitHub
+  Username: kmpark-dev
+  Email: kevin.park@acmecorp.com
+  Password: P@ssw0rd!2026#Secure
+  2FA: Enabled (Authenticator App)
+  API Token: ghp_xyzABCD1234567890abcdef1234567890
+
+  Platform: AWS IAM
+  Username: svc_deploy_prod
+  Access Key ID: AKIA2EXAMPLE000000001
+  Secret Access Key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  Permissions: AdministratorAccess (Production)
+
+  Platform: Slack
+  Email: kevin.park@acmecorp.com
+  Display Name: Kevin Park
+  Workspace: acmecorp.slack.com
+  API Token: xoxb_fake_workspace_token_nonprod
+
+  Platform: Stripe (Production)
+  API Key: sk_test_demo_not_real_key
+  Publishable Key: pk_test_demo_not_real_key
+  Webhook Secret: whsec_demo_not_real_secret
+
+  Platform: OpenAI
+  API Key: sk-proj-abcdefghijklmnopqrstuvwxyz1234567890ABCD
+  Organization ID: org-ABC123DEF456
+  Project ID: proj_AbCdEfGhIjKlMnOpQrStUvWxYz123456
+
+  Platform: MongoDB Atlas
+  Username: admin_prod
+  Connection String: mongodb+srv://admin_prod:XyZ!2026Secure@cluster0.example.mongodb.net/
+  Password: XyZ!2026Secure
+
+  Platform: Docker Hub
+  Username: kmpark
+  Token: dckr_pat_abcdefgh-1234-5678-9012-abcdefghijkl
+
+  Platform: Jira / Atlassian
+  Email: kevin.park@acmecorp.com
+  API Token: ATATT3xFfGF0abcdefghijklmnopqrstuvwxyz12345678
+
+NETWORK IDENTIFIERS
+  Workstation IP: 10.24.83.147
+  VPN IP: 172.16.20.45
+  External IP: 203.0.113.42
+  IPv6: 2001:0db8:85a3:0000:0000:8a2e:0370:7334
+  MAC Address: 00:1A:2B:3C:4D:5E
+  Hostname: DEV-WKS-83746.eng.acmecorp.com
+
+  WiFi SSID: AcmeCorp-Guest
+  WiFi Password: Guest2026Access!
+
+DATABASE CONNECTIONS
+  PostgreSQL (Production):
+    Host: pg-prod-1.acmecorp.internal
+    Port: 5432
+    Database: acme_prod
+    User: app_service
+    Password: db_P@ss_Pr0d_2026!
+
+  Redis (Cache):
+    Host: redis-cache-01.acmecorp.internal
+    Port: 6379
+    Auth Token: redis_auth_token_abc123xyz789

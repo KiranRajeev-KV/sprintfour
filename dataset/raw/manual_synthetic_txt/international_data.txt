@@ -1,0 +1,89 @@
+INTERNATIONAL PERSONAL DATA — GLOBAL DIRECTORY
+
+UNITED KINGDOM
+  Name: James Alexander Whitmore
+  Address: 42 Baker Street, Flat 3B
+           London, NW1 6XE
+           United Kingdom
+  Phone: +44 20 7946 0958
+  Mobile: +44 7700 900482
+  Email: james.whitmore@example.co.uk
+  Date of Birth: 23 August 1978
+  National Insurance Number: QQ 12 34 56 C
+  NHS Number: 943 476 5912
+  Passport Number: 123456789
+  Driver's License: WHITMO789123AA9
+  Sort Code: 60-16-13
+  Bank Account: 12345678
+  IBAN: GB29 NWBK 6016 1331 9268 19
+  SWIFT/BIC: NWBKGB2L
+
+GERMANY
+  Name: Hans-Christian Müller
+  Address: Hauptstraße 42A
+           10115 Berlin
+           Germany
+  Phone: +49 30 12345678
+  Mobile: +49 171 2345678
+  Email: hc.mueller@example.de
+  Date of Birth: 15. Februar 1975
+  Steuer-ID: 12 345 678 901
+  Personalausweis: L12345678
+  IBAN: DE89 3704 0044 0532 0130 00
+  BIC: COBADEFFXXX
+
+FRANCE
+  Name: Marie-Claire Dupont
+  Address: 15 Rue de la Paix
+           75002 Paris
+           France
+  Phone: +33 1 23 45 67 89
+  Mobile: +33 6 12 34 56 78
+  Email: marie.dupont@example.fr
+  Date of Birth: 5 juillet 1982
+  INSEE (NIR): 2 82 07 75 108 123 45
+  Passeport: 12AB34567
+  Carte Vitale: 2 82 07 75 108 123 45
+  IBAN: FR76 3000 4003 2900 0102 3847 953
+  BIC: BNPAFRPPXXX
+
+SPAIN
+  Name: Carlos García López
+  Address: Calle Mayor 123, 4°B
+           28013 Madrid
+           Spain
+  Phone: +34 91 123 4567
+  Mobile: +34 612 345 678
+  Email: carlos.garcia@example.es
+  DNI/NIF: 12345678Z
+  Pasaporte: PA123456
+  Seguridad Social: 28/123456/78
+  IBAN: ES91 2100 0418 4502 0005 1332
+  BIC: CAIXESBBXXX
+
+INDIA
+  Name: Priya Krishnamurthy
+  Address: 42, Brigade Road, Ashok Nagar
+           Bengaluru, Karnataka 560025
+           India
+  Phone: +91 80 4123 4567
+  Mobile: +91 98765 43210
+  Email: priya.krishnamurthy@example.in
+  Date of Birth: 15 March 1991
+  Aadhaar Number: 2345 6789 0123
+  PAN: ABCDE1234F
+  Passport: Z1234567
+  Voter ID: ABC1234567
+  Driving License: KA-01-2024-1234567
+
+JAPAN
+  Name: 佐藤 優子 (Yuko Sato)
+  Address: 東京都新宿区西新宿2-8-1
+           Tokyo 160-0023, Japan
+  Phone: +81 3-3345-6789
+  Mobile: +81 90-1234-5678
+  Email: yuko.sato@example.jp
+  Date of Birth: 1990年4月12日
+  My Number: 1234 5678 9012
+  Passport: TK1234567
+  Driver's License: 30198765432

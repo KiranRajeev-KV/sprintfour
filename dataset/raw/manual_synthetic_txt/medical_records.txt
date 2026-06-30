@@ -1,0 +1,67 @@
+MEDICAL RECORD — CONFIDENTIAL
+Facility: Mercy General Hospital, 5000 Oakwood Avenue, Chicago, IL 60610
+
+PATIENT INFORMATION
+  Patient Name: Patricia Anne Williamson
+  Date of Birth: March 22, 1955
+  Age: 71
+  Gender: Female
+  SSN: 987-65-4321
+  Patient ID: PAT-2026-0047291
+  Medical Record Number: MRN-837465912
+  Account Number: 10039485726
+
+  Address: 1824 Cedar Lane, Unit 7, Evanston, IL 60201
+  Phone: (555) 891-2345
+  Email: patricia.williamson@example.com
+  Emergency Contact: James Williamson, Son
+  Emergency Phone: (555) 789-0123
+
+INSURANCE INFORMATION
+  Primary Insurance: Aetna Medicare Advantage
+  Policy Number: MCR-876-543-210-99
+  Group Number: GRP-48291
+  Member ID: 8273645910
+  Secondary Insurance: Illinois Medicaid
+  Member ID: IL-MM-48726395
+
+ATTENDING PHYSICIAN
+  Name: Dr. Marcus Johnson, MD
+  NPI: 1928473625
+  Specialty: Internal Medicine
+  Contact: (555) 432-1098
+
+PRIMARY DIAGNOSIS
+  Diagnosis: Type 2 Diabetes Mellitus (E11.9)
+  Hypertension, Essential (I10)
+  Hyperlipidemia (E78.5)
+  Onset Date: January 2018
+
+CURRENT MEDICATIONS
+  1. Metformin HCl 1000 mg — Take 1 tablet twice daily with meals
+  2. Lisinopril 10 mg — Take 1 tablet once daily
+  3. Atorvastatin 20 mg — Take 1 tablet once daily at bedtime
+  4. Aspirin 81 mg — Take 1 tablet once daily
+
+ALLERGIES
+  Drug: Sulfonamide antibiotics — Severe reaction (hives, difficulty breathing)
+  Environmental: Latex — Mild skin irritation
+  Food: Shellfish — Anaphylaxis risk (carries EpiPen)
+
+PAST MEDICAL HISTORY
+  Cholecystectomy, 2017
+  Seasonal influenza, annually vaccinated
+  COVID-19 vaccination: Moderna, fully vaccinated with booster
+
+LAB RESULTS (Most Recent)
+  Hemoglobin A1c: 7.2% (Date: 05/10/2026)
+  LDL Cholesterol: 98 mg/dL
+  Blood Pressure: 128/78 mmHg
+  BMI: 29.4
+
+ADVANCE DIRECTIVES
+  Living Will on File: Yes
+  Healthcare Power of Attorney: James Williamson
+  DNR Status: No
+
+This document is protected under HIPAA regulations. Unauthorized access or disclosure is prohibited.

@@ -5,28 +5,42 @@ This repository uses the CUAD v1 legal contract dataset as the starting corpus f
 ## What this step does
 
 - Downloads the CUAD v1 archive from an official source.
-- Extracts the plain-text contract files.
-- Selects the first 220 `.txt` contracts in deterministic sorted order.
-- Normalizes them into UTF-8 JSONL records for backend seeding.
-- Writes a small manifest describing the prepared output.
+- Extracts the raw CUAD archive.
+- Verifies the extracted plain-text contract folder exists at `dataset/raw/cuad_v1/extracted/CUAD_v1/full_contract_txt`.
+- Reports the number of extracted `.txt` files.
 
 ## What this step does not do
 
+- No JSONL preparation.
 - No synthetic PII injection.
 - No mock detections.
 - No frontend or backend product logic.
+
+## Manual synthetic samples
+
+Manually created synthetic text samples for upload and workflow testing now live under:
+
+- `dataset/raw/manual_synthetic_txt/`
+
+These are separate from the CUAD extraction flow and are intended for local batch upload and exception-path testing.
 
 ## Command
 
 ```bash
 python3 dataset/scripts/prepare_cuad.py
+python3 dataset/scripts/benchmark_upload.py 100
 python3 dataset/scripts/generate_mock_redactions.py
 ```
 
-## Generated files
+## Output of `prepare_cuad.py`
 
-- `dataset/processed/cuad_contracts.jsonl`
-- `dataset/processed/cuad_manifest.json`
+- `dataset/raw/cuad_v1/downloads/CUAD_v1.zip`
+- `dataset/raw/cuad_v1/extracted/CUAD_v1/full_contract_txt/`
+
+## Processed mock-data artifacts
+
+Other dataset scripts may generate:
+
 - `dataset/processed/documents_seed.jsonl`
 - `dataset/processed/mock_redactions.jsonl`
 - `dataset/processed/mock_redaction_manifest.json`

@@ -1,0 +1,78 @@
+EDGE CASES — PII REDACTION TESTING
+This file contains near-miss patterns, unusual formats, and
+edge cases that should NOT all be flagged as PII.
+
+--- PARTIAL / TRUNCATED DATA ---
+
+  The user's SSN ends in 6789.
+  My phone number is 555-... actually let me not share that.
+  Email: john (incomplete — no domain)
+  Domain only: @example.com
+  Her SSN format was ###-##-#### according to the form instructions.
+  The credit card type is Visa but the number was redacted [REDACTED].
+  PAN: ABCD (too short to be a real PAN)
+  Phone: +1 (incomplete country code)
+
+--- VALID FORMATS WITH INVALID CONTENT (test specific detectors) ---
+
+  Example IP used in documentation: 192.0.2.1 (TEST-NET range)
+  Reservation number: 555-555-5555 (invalid exchange)
+  Test credit card: 4000-0000-0000-0000 (test range)
+  Fake SSN used in training: 000-00-0000
+  EIN from IRS example: 12-3456789
+
+--- EMBEDDED IN PROSE (should be harder to detect) ---
+
+  If you need help, reach out to our support team.
+  The meeting is scheduled for Friday at 3 PM in Conference Room B.
+  Please reference case number CAS-2026-001 when calling.
+  The document ID is DOC-48291-V3.
+  Server IP 10.0.0.1 is down for maintenance.
+  Use endpoint /api/v2/users/48291/profile to fetch data.
+  The commit hash is a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0.
+
+--- DATES THAT COULD BE CONFUSED WITH BIRTH DATES ---
+
+  Project start: 01/15/2024
+  Document version published: 2023-08-22
+  Contract expiry: December 31, 2026
+  Fiscal year ends 03/31/2027
+
+--- NON-STANDARD PHONE FORMATS ---
+
+  SIP URI: sip:john.doe@voip.company.com
+  Skype ID: live:john.doe_2024
+  Discord: user#1234
+  WhatsApp: wa.me/15551234567
+  Telegram: @johndoe
+  Text me at 555.867.5309 (unusual formatting)
+
+--- LOOK-ALIKE IDENTIFIERS ---
+
+  Order reference: ORD-48291-2026
+  Ticket ID: TKT-847291
+  Invoice number: INV-2026-18472
+  Transaction ID: TXN_abcdef1234567890
+  Tracking number: 1Z999AA10123456784 (UPS format)
+  FedEx: 7489 5647 2910 3847
+
+--- ITEMIZED NON-PII LIST (everyday data) ---
+
+  Coffee order: Grande latte, oat milk, extra shot
+  Shoe size: 10.5
+  Favorite color: Blue
+  Department: Engineering
+  Conference room: Boardroom A
+  Company policy number: HR-POL-042
+  Building access code: 8374#
+
+--- MALFORMED DATA THAT SHOULD BE EXAMINED CAREFULLY ---
+
+  Email with spaces: j o h n @ e x a m p l e . c o m
+  SSN with letters: AB3-45-6789
+  Phone with letters: 555-PARK-123
+  PAN: ABCDE1234 (missing trailing letter)
+  ZIP code: 9410 (truncated)
+  Credit card: 4532 0151 1283 036 (missing last digit)
+  Date: 02/29/2025 (invalid — 2025 is not a leap year)
+  Empty angle brackets: <> no data provided

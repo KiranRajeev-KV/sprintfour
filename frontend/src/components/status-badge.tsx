@@ -3,6 +3,10 @@ import { cn } from '#/lib/utils'
 import type { DocumentStatus } from '#/lib/schemas'
 
 const statusStyles: Record<DocumentStatus, string> = {
+  QUEUED:
+    'border-gray-400/30 bg-gray-400/18 text-gray-700 dark:text-gray-300',
+  PROCESSING:
+    'border-blue-400/30 bg-blue-400/18 text-blue-800 dark:text-blue-200',
   READY:
     'border-emerald-500/30 bg-emerald-500/12 text-emerald-900 dark:text-emerald-200',
   NEEDS_REVIEW:

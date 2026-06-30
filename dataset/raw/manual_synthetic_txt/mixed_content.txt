@@ -1,0 +1,155 @@
+DOCUMENT PACKAGE — MIXED CONTENT
+
+=== DOCUMENT A: CONFIDENTIAL MEMO ===
+
+TO: All Staff
+FROM: Lisa Martinez, Director of Engineering
+DATE: June 22, 2026
+SUBJECT: Office Closure for Independence Day
+
+This is a reminder that the office will be closed on Monday,
+July 6, 2026 in observance of Independence Day. Normal
+operations will resume on Tuesday, July 7, 2026.
+
+If you have any questions, please reach out to HR at
+hr@acmecorp.com or visit the intranet portal.
+
+Thank you and have a safe holiday.
+
+=== DOCUMENT B: EMPLOYEE ONBOARDING FORM ===
+
+Full Name: Michael Robert Torres
+Date of Birth: August 28, 1998
+SSN: 987-65-4321
+Email: michael.torres@acmecorp.com
+Phone: (555) 872-3419
+Address: 631 Maple Street, Unit 2B, San Francisco, CA 94110
+
+Emergency Contact:
+  Name: Isabella Torres
+  Relationship: Mother
+  Phone: (555) 234-1098
+
+Banking for Direct Deposit:
+  Bank: Chase Bank
+  Account: 10038472956
+  Routing: 021000021
+
+=== DOCUMENT C: PROJECT STATUS UPDATE ===
+
+Project Nebula is on track for the Q3 milestone. The team has
+completed 78 percent of the planned feature work. Remaining
+items include API documentation and performance benchmarking.
+
+Key achievements this sprint:
+- Authentication module refactored and tested
+- Database migration scripts completed
+- CI/CD pipeline updated to support parallel builds
+
+Risks:
+- Third-party dependency on Auth0 may impact timeline
+- Team capacity is constrained due to concurrent Project Helios work
+
+=== DOCUMENT D: CUSTOMER FEEDBACK SURVEY ===
+
+Dear Valued Customer,
+
+We would love to hear about your experience with our platform.
+This short survey should take approximately 5 minutes to complete.
+
+How satisfied are you with our service?
+[ ] Very Satisfied
+[ ] Satisfied
+[ ] Neutral
+[ ] Dissatisfied
+[ ] Very Dissatisfied
+
+Optional — Please provide your contact details if you would
+like to be entered into our monthly drawing:
+
+Name: _________________________________________
+Email: ________________________________________
+Phone: ________________________________________
+
+Your privacy is important to us. We will not share your
+personal information with third parties.
+
+=== DOCUMENT E: LEGAL DISCOVERY RESPONSE ===
+
+IN THE UNITED STATES DISTRICT COURT
+NORTHERN DISTRICT OF CALIFORNIA
+
+Case No. 3:26-cv-04829-SI
+
+ACME GLOBAL TECHNOLOGIES, INC.,       )
+                                       )
+              Plaintiff,               )
+                                       )
+       v.                              )
+                                       )
+NOVA PHARMA CORPORATION,               )
+                                       )
+              Defendant.               )
+_______________________________________)
+
+DEFENDANT'S RESPONSE TO PLAINTIFF'S
+FIRST SET OF INTERROGATORIES
+
+Defendant Nova Pharma Corporation (EIN 82-7654321), by and
+through its counsel, responds as follows:
+
+Interrogatory No. 1:
+State the name, address, and telephone number of each person
+with knowledge of the facts alleged in the Complaint.
+
+Response:
+  1. James R. Harrison, 2847 Pacific Heights Road, Los Angeles,
+     CA 90077, (555) 342-8976
+  2. Dr. Lisa Martinez, 100 Innovation Drive, Suite 400,
+     San Francisco, CA 94105, (555) 234-8901
+  3. Robert J. Williams, Esq., 456 Montgomery Street, Suite 1200,
+     San Francisco, CA 94104, (415) 555-0200
+
+=== DOCUMENT F: INTERNAL NEWSLETTER ===
+
+This week's employee spotlight features Sarah Chen from the
+Design team. Sarah has been with the company for three years
+and recently led the redesign of our mobile application.
+
+Fun fact: Sarah is an avid rock climber and has climbed El
+Capitan in Yosemite twice.
+
+New faces this month:
+- Marcus Johnson joins as Senior DevOps Engineer
+- Priya Patel joins as Product Manager
+
+Welcome aboard!
+
+=== DOCUMENT G: OFFICE SUPPLY REQUEST ===
+
+Requestor: James Okonkwo
+Department: Engineering
+Date: June 23, 2026
+
+Items Requested:
+- 2x Standing desk converters (model: Varidesk Pro36)
+- 4x Ergonomic keyboards (Logitech Ergo K860)
+- 6x 27-inch monitors (Dell U2723QE)
+
+Approval Status: Pending
+
+=== DOCUMENT H: PASSWORD RESET CONFIRMATION ===
+
+Hi kmpark,
+
+You recently requested to reset your password for your
+Acme Corp account (kevin.park@acmecorp.com).
+
+If you did not request this change, please contact IT
+Security immediately at security@acmecorp.com or call
+(555) 234-8912.
+
+This request was made from IP address 203.0.113.42.
+
+Best regards,
+IT Security Team

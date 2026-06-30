@@ -72,6 +72,8 @@ type DocumentsTableProps = {
 
 const statusOptions: Array<{ label: string; value: DocumentStatus | 'ALL' }> = [
   { label: 'All statuses', value: 'ALL' },
+  { label: 'Queued', value: 'QUEUED' },
+  { label: 'Processing', value: 'PROCESSING' },
   { label: 'Ready', value: 'READY' },
   { label: 'Needs Review', value: 'NEEDS_REVIEW' },
   { label: 'Failed', value: 'FAILED' },
@@ -108,6 +110,8 @@ export function DocumentsTable({
 }: DocumentsTableProps) {
   const selectedItems = data.items.filter((document) => selectedIds[document.id])
   const selectedCount = selectedItems.length
+  const selectedQueuedCount = selectedItems.filter((document) => document.status === 'QUEUED').length
+  const selectedProcessingCount = selectedItems.filter((document) => document.status === 'PROCESSING').length
   const selectedReadyCount = selectedItems.filter((document) => document.status === 'READY').length
   const selectedCleanCount = selectedItems.filter((document) => document.status === 'CLEAN').length
   const selectedNeedsReviewCount = selectedItems.filter((document) => document.status === 'NEEDS_REVIEW').length
@@ -216,8 +220,8 @@ export function DocumentsTable({
               Review queue
             </CardTitle>
             <CardDescription className="max-w-2xl text-sm leading-6 text-[var(--sea-ink-soft)]">
-              Scan the safe majority quickly, then drill into risky or failed contracts
-              without opening all 220 files.
+              Clear the safe majority in bulk, then drill into risky or failed files
+              without opening every document in the batch.
             </CardDescription>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -292,6 +296,8 @@ export function DocumentsTable({
                     {selectedCount} selected on this page
                   </div>
                   <div className="flex flex-wrap gap-2 text-xs text-[var(--sea-ink-soft)]">
+                    <SelectionPill label="QUEUED" count={selectedQueuedCount} />
+                    <SelectionPill label="PROCESSING" count={selectedProcessingCount} />
                     <SelectionPill label="READY" count={selectedReadyCount} />
                     <SelectionPill label="CLEAN" count={selectedCleanCount} />
                     <SelectionPill label="NEEDS_REVIEW" count={selectedNeedsReviewCount} />

@@ -1,0 +1,92 @@
+CUSTOMER SUPPORT TICKET — ZENDESK EXPORT
+Exported: June 28, 2026
+
+===== TICKET #284719 =====
+Status: Resolved
+Priority: High
+Channel: Email
+Created: June 24, 2026 10:15:23 UTC
+Updated: June 26, 2026 14:30:45 UTC
+
+Customer Information:
+  Name: Thomas Edward Baker
+  Email: tom.baker@example.com
+  Phone: (555) 273-9164
+  Account Number: ACM-837465-01
+  Plan: Enterprise Plus
+
+Subject: Unable to process payroll — urgent
+
+Description:
+Hello, I am trying to process our biweekly payroll but the
+system is giving an error when I try to submit. Our company
+has 47 employees and payroll is due tomorrow. This is the
+second time this month we have had this issue.
+
+Our company details:
+  Company Name: Baker's Construction LLC
+  EIN: 82-7654321
+  Business Address: 873 Industrial Parkway, Columbus, OH 43215
+  Contact Person: Thomas Baker (I am the owner)
+
+Please help resolve this immediately.
+
+Attachments:
+  payroll_error_screenshot.png
+  employee_roster_q2_2026.xlsx
+
+===== TICKET #284851 =====
+Status: Pending — Awaiting Customer
+Priority: Medium
+Channel: Phone
+Created: June 25, 2026 09:42:11 UTC
+
+Customer Information:
+  Name: Dr. Anita Sharma
+  Email: asharma@northside-medical.com
+  Phone: (312) 555-7890
+  Account: MED-291847-03
+
+Call Notes:
+Customer called regarding a billing discrepancy. She stated
+that her account was charged $2,847.00 for a service that
+should have been $1,200.00 under her current plan.
+
+  Patient NPI: 1928473625
+  Insurance ID: BCBS-IL-8876543
+  Group Number: GRP-48291
+
+Ticket escalated to Billing Department at 10:15 UTC.
+Contact person in Billing: Sarah Mitchell
+  Email: sarah.mitchell@acmecorp.com
+  Direct: (555) 234-5678
+
+===== TICKET #284902 =====
+Status: Open
+Priority: Low
+Channel: Web Form
+Created: June 27, 2026 16:30:05 UTC
+
+Customer Information:
+  Name: Emily Watson
+  Email: emily.watson@example.org
+  Phone: (555) 908-1723
+  Account: PRE-372819-05
+
+Subject: How to update my billing address
+
+Description:
+Hi, I recently moved and need to update my billing address
+on file. My old address was 256 Elm Street, Apt 4, Chicago,
+IL 60614. My new address is 489 Lake Shore Drive, Unit 12B,
+Chicago, IL 60611.
+
+Can you help me update this in the system? Also, please
+confirm that my next invoice (due July 15) will be sent
+to the new address.
+
+My credit card on file (Visa ending in 0366) should remain
+the same.
+
+Thanks!
+Emily

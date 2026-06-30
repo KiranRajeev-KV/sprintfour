@@ -185,60 +185,169 @@ func (s *Server) getDocumentReviewSummary(c *gin.Context) {
 }
 
 func (s *Server) uploadDocuments(c *gin.Context) {
+	startedAt := time.Now()
+	requestID := c.GetHeader("X-Request-Id")
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUploadTotalBytes+(512*1024))
-	if err := c.Request.ParseMultipartForm(maxUploadTotalBytes); err != nil {
-		writeError(c, http.StatusBadRequest, "upload_too_large", "upload exceeds the maximum allowed size")
+	s.logger.Info("upload_request_started",
+		slog.String("request_id", requestID),
+		slog.String("method", c.Request.Method),
+		slog.String("path", c.FullPath()),
+		slog.Int64("max_upload_total_bytes", maxUploadTotalBytes),
+		slog.Int("max_upload_files", maxUploadFiles),
+	)
+	reader, err := c.Request.MultipartReader()
+	if err != nil {
+		s.logger.Error("upload_multipart_reader_failed",
+			slog.String("request_id", requestID),
+			slog.String("error", err.Error()),
+			slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+		)
+		writeError(c, http.StatusBadRequest, "invalid_body", "multipart form data is required")
 		return
 	}
 
-	form := c.Request.MultipartForm
-	if form == nil || len(form.File["files"]) == 0 {
+	mode := "replace"
+	totalBytes := int64(0)
+	uploadedCount := 0
+	rejectedCount := 0
+	acceptedInputs := make([]UploadedDocumentInput, 0, 64)
+	items := make([]UploadItemResult, 0, 64)
+
+	for {
+		partStartedAt := time.Now()
+		part, err := reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			s.logger.Info("upload_parts_complete",
+				slog.String("request_id", requestID),
+				slog.String("mode", mode),
+				slog.Int("uploaded", uploadedCount),
+				slog.Int("accepted", len(acceptedInputs)),
+				slog.Int("rejected", rejectedCount),
+				slog.Int64("total_bytes", totalBytes),
+				slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+			)
+			break
+		}
+		if err != nil {
+			s.logger.Error("upload_next_part_failed",
+				slog.String("request_id", requestID),
+				slog.Int("uploaded", uploadedCount),
+				slog.Int64("total_bytes", totalBytes),
+				slog.String("error", err.Error()),
+				slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+			)
+			writeError(c, http.StatusBadRequest, "upload_too_large", "upload exceeds the maximum allowed size")
+			return
+		}
+		if part.FormName() == "mode" {
+			content, readErr := io.ReadAll(io.LimitReader(part, 64))
+			part.Close()
+			if readErr != nil {
+				s.logger.Error("upload_mode_read_failed",
+					slog.String("request_id", requestID),
+					slog.String("error", readErr.Error()),
+					slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+				)
+				writeError(c, http.StatusBadRequest, "invalid_mode", "upload mode must be replace or append")
+				return
+			}
+			mode = normalizeUploadMode(string(content))
+			s.logger.Info("upload_mode_read",
+				slog.String("request_id", requestID),
+				slog.String("mode", mode),
+				slog.Int64("part_duration_ms", time.Since(partStartedAt).Milliseconds()),
+			)
+			continue
+		}
+		if part.FormName() != "files" {
+			part.Close()
+			continue
+		}
+
+		uploadedCount++
+		if uploadedCount > maxUploadFiles {
+			part.Close()
+			s.logger.Error("upload_file_limit_exceeded",
+				slog.String("request_id", requestID),
+				slog.Int("uploaded", uploadedCount),
+				slog.Int("max_upload_files", maxUploadFiles),
+				slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+			)
+			writeError(c, http.StatusBadRequest, "too_many_files", "too many files uploaded")
+			return
+		}
+
+		input, item, size := readUploadedTXTPart(part)
+		totalBytes += size
+		part.Close()
+		if totalBytes > maxUploadTotalBytes {
+			s.logger.Error("upload_total_bytes_exceeded",
+				slog.String("request_id", requestID),
+				slog.Int("uploaded", uploadedCount),
+				slog.Int64("total_bytes", totalBytes),
+				slog.Int64("max_upload_total_bytes", maxUploadTotalBytes),
+				slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+			)
+			writeError(c, http.StatusBadRequest, "upload_too_large", "upload exceeds the maximum allowed size")
+			return
+		}
+		items = append(items, item)
+		if item.Accepted {
+			acceptedInputs = append(acceptedInputs, input)
+		} else {
+			rejectedCount++
+		}
+		if uploadedCount <= 5 || uploadedCount%25 == 0 || !item.Accepted {
+			s.logger.Info("upload_file_processed",
+				slog.String("request_id", requestID),
+				slog.Int("uploaded", uploadedCount),
+				slog.String("filename", item.Filename),
+				slog.Bool("accepted", item.Accepted),
+				slog.String("reason", item.Reason),
+				slog.Int64("file_bytes", size),
+				slog.Int64("total_bytes", totalBytes),
+				slog.Int64("part_duration_ms", time.Since(partStartedAt).Milliseconds()),
+				slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+			)
+		}
+	}
+
+	if uploadedCount == 0 {
 		writeError(c, http.StatusBadRequest, "invalid_body", "at least one file is required")
 		return
 	}
-
-	mode := normalizeUploadMode(c.PostForm("mode"))
 	if mode != "replace" && mode != "append" {
+		s.logger.Error("upload_invalid_mode",
+			slog.String("request_id", requestID),
+			slog.String("mode", mode),
+			slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+		)
 		writeError(c, http.StatusBadRequest, "invalid_mode", "upload mode must be replace or append")
 		return
 	}
 
-	files := form.File["files"]
-	if len(files) > maxUploadFiles {
-		writeError(c, http.StatusBadRequest, "too_many_files", "too many files uploaded")
-		return
-	}
-
-	totalBytes := int64(0)
-	acceptedInputs := make([]UploadedDocumentInput, 0, len(files))
-	items := make([]UploadItemResult, 0, len(files))
-
-	for _, header := range files {
-		totalBytes += header.Size
-		if totalBytes > maxUploadTotalBytes {
-			writeError(c, http.StatusBadRequest, "upload_too_large", "upload exceeds the maximum allowed size")
-			return
-		}
-
-		input, item := readUploadedTXTFile(header)
-		items = append(items, item)
-		if item.Accepted {
-			acceptedInputs = append(acceptedInputs, input)
-		}
-	}
-
+	storeStartedAt := time.Now()
 	result, err := s.store.UploadDocuments(mode, acceptedInputs, time.Now())
 	if err != nil {
+		s.logger.Error("upload_store_failed",
+			slog.String("request_id", requestID),
+			slog.String("mode", mode),
+			slog.Int("accepted", len(acceptedInputs)),
+			slog.String("error", err.Error()),
+			slog.Int64("store_duration_ms", time.Since(storeStartedAt).Milliseconds()),
+			slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+		)
 		s.writeMutationError(c, err)
 		return
 	}
 
-	result.Uploaded = len(files)
+	result.Uploaded = uploadedCount
 	result.Accepted = len(acceptedInputs)
-	result.Rejected = len(files) - len(acceptedInputs)
+	result.Rejected = uploadedCount - len(acceptedInputs)
 	result.Items = mergeUploadItemResults(items, result.Items)
 
 	s.logger.Info("documents_uploaded",
+		slog.String("request_id", requestID),
 		slog.String("batch_id", result.BatchID),
 		slog.String("mode", result.Mode),
 		slog.Int("uploaded", result.Uploaded),
@@ -246,6 +355,9 @@ func (s *Server) uploadDocuments(c *gin.Context) {
 		slog.Int("rejected", result.Rejected),
 		slog.Int("documents_created", result.DocumentsCreated),
 		slog.Int("redactions_created", result.RedactionsCreated),
+		slog.Int64("total_bytes", totalBytes),
+		slog.Int64("store_duration_ms", time.Since(storeStartedAt).Milliseconds()),
+		slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
 	)
 	c.JSON(http.StatusOK, result)
 }
@@ -423,6 +535,8 @@ func (s *Server) latestExport(c *gin.Context) {
 		"skipped_pending_redactions":  summary.SkippedPending,
 		"skipped_rejected_redactions": summary.SkippedRejected,
 		"skipped_overlap_redactions":  summary.SkippedOverlap,
+		"output_dir":                  summary.OutputDir,
+		"files":                       summary.Files,
 		"created_at":                  summary.CreatedAt,
 	})
 }
@@ -555,7 +669,8 @@ func parsePositiveInt(raw string, defaultValue, maxValue int) (int, error) {
 
 func isAllowedStatusFilter(value string) bool {
 	switch strings.ToUpper(strings.TrimSpace(value)) {
-	case "READY", "NEEDS_REVIEW", "FAILED", "CLEAN", "APPROVED", "EXPORTED":
+	case "READY", "NEEDS_REVIEW", "FAILED", "CLEAN", "APPROVED", "EXPORTED",
+		"QUEUED", "PROCESSING":
 		return true
 	default:
 		return false
@@ -578,8 +693,8 @@ func valueOrEmpty(value *string) string {
 	return *value
 }
 
-func readUploadedTXTFile(header *multipart.FileHeader) (UploadedDocumentInput, UploadItemResult) {
-	filename, relativePath := uploadNames(header.Filename)
+func readUploadedTXTPart(part *multipart.Part) (UploadedDocumentInput, UploadItemResult, int64) {
+	filename, relativePath := uploadNames(part.FileName())
 	item := UploadItemResult{
 		Filename:     filename,
 		RelativePath: nullableString(relativePath),
@@ -588,42 +703,30 @@ func readUploadedTXTFile(header *multipart.FileHeader) (UploadedDocumentInput, U
 
 	if !strings.EqualFold(path.Ext(filename), ".txt") {
 		item.Reason = "only_txt_supported"
-		return UploadedDocumentInput{}, item
-	}
-	if header.Size <= 0 {
-		item.Reason = "empty_file"
-		return UploadedDocumentInput{}, item
-	}
-	if header.Size > maxUploadFileBytes {
-		item.Reason = "file_too_large"
-		return UploadedDocumentInput{}, item
+		_, _ = io.Copy(io.Discard, part)
+		return UploadedDocumentInput{}, item, 0
 	}
 
-	file, err := header.Open()
+	content, err := io.ReadAll(io.LimitReader(part, maxUploadFileBytes+1))
 	if err != nil {
 		item.Reason = "read_failed"
-		return UploadedDocumentInput{}, item
+		return UploadedDocumentInput{}, item, 0
 	}
-	defer file.Close()
-
-	content, err := io.ReadAll(io.LimitReader(file, maxUploadFileBytes+1))
-	if err != nil {
-		item.Reason = "read_failed"
-		return UploadedDocumentInput{}, item
-	}
+	size := int64(len(content))
 	if len(content) == 0 {
 		item.Reason = "empty_file"
-		return UploadedDocumentInput{}, item
+		return UploadedDocumentInput{}, item, size
 	}
 	if len(content) > maxUploadFileBytes {
 		item.Reason = "file_too_large"
-		return UploadedDocumentInput{}, item
+		_, _ = io.Copy(io.Discard, part)
+		return UploadedDocumentInput{}, item, size
 	}
 
 	text := normalizeUploadedText(string(content))
 	if strings.TrimSpace(text) == "" {
 		item.Reason = "empty_file"
-		return UploadedDocumentInput{}, item
+		return UploadedDocumentInput{}, item, size
 	}
 
 	item.Accepted = true
@@ -632,7 +735,7 @@ func readUploadedTXTFile(header *multipart.FileHeader) (UploadedDocumentInput, U
 		Filename:     filename,
 		RelativePath: relativePath,
 		Text:         text,
-	}, item
+	}, item, size
 }
 
 func uploadNames(raw string) (filename string, relativePath string) {

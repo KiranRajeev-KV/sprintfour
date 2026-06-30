@@ -1,0 +1,84 @@
+UNIVERSITY OF CALIFORNIA, BERKELEY
+Office of the Registrar
+
+OFFICIAL ACADEMIC TRANSCRIPT
+
+STUDENT INFORMATION
+  Name: Andrew James Mitchell
+  Date of Birth: February 14, 2000
+  SSN: 987-65-4321
+  Student ID: 303-876-2910
+  Permanent Address: 2874 College Avenue, Apt 6, Berkeley, CA 94704
+  Phone: (555) 298-3746
+  Email: andrew.mitchell@berkeley.edu
+
+  Program: Bachelor of Science in Computer Science
+  College: College of Engineering
+  Matriculation: Fall 2018
+  Graduation: Spring 2022
+  Degree Conferred: Bachelor of Science, May 20, 2022
+  GPA: 3.72 (Cumulative)
+  Class Rank: Top 15%
+
+SEMESTER-BY-SEMESTER RECORD
+
+Fall 2018
+  COMPSCI 61A: Structure & Interpretation of Programs       A    4
+  MATH 53: Multivariable Calculus                           A-   4
+  ENGLISH R1A: Rhetoric & Composition                       A    4
+  PHYSICS 7A: Physics for Scientists & Engineers            B+   4
+  Semester GPA: 3.67
+
+Spring 2019
+  COMPSCI 61B: Data Structures                              A    4
+  MATH 54: Linear Algebra & Differential Equations          B+   4
+  STAT 2: Introduction to Statistics                        A    3
+  HISTORY 7B: US History Since 1865                         A-   4
+  Semester GPA: 3.75
+
+Fall 2019
+  COMPSCI 70: Discrete Mathematics & Probability            A-   4
+  COMPSCI 61C: Machine Structures                           B+   4
+  EE 16A: Designing Information Systems & Devices           A    4
+  SPANISH 1: Elementary Spanish                             A    5
+  Semester GPA: 3.77
+
+Spring 2020
+  COMPSCI 162: Operating Systems                            A-   4
+  COMPSCI 188: Introduction to AI                           A    4
+  EE 16B: Designing Information Systems & Devices II        A-   4
+  SPANISH 2: Elementary Spanish                             A    5
+  Semester GPA: 3.80
+
+Fall 2020
+  COMPSCI 170: Efficient Algorithms & Intractable Problems  A    4
+  COMPSCI 161: Computer Security                            A-   4
+  COMPSCI 186: Databases                                    A-   4
+  Semester GPA: 3.83
+
+Spring 2021
+  COMPSCI 189: Machine Learning                             A    4
+  COMPSCI 169: Software Engineering                         A    4
+  COMPSCI 194: Senior Project                               A    3
+  Semester GPA: 4.00
+
+Fall 2021
+  COMPSCI 164: Natural Language Processing                  A    4
+  COMPSCI 195: Teaching Computer Science                    A-   2
+  COMPSCI H196: Honors Research                             A    3
+  Semester GPA: 3.89
+
+Spring 2022
+  COMPSCI H196: Honors Thesis (AI Ethics)                   A    4
+  COMPSCI 198: Directed Group Study                         A    2
+  Semester GPA: 4.00
+
+HONORS AND AWARDS
+  Dean's List: Fall 2018, Spring 2019, Fall 2019, Spring 2020,
+              Fall 2020, Spring 2021, Fall 2021, Spring 2022
+  EECS Department Citation: Spring 2022
+  Tau Beta Pi Engineering Honor Society: Inducted 2020
+
+STANDARDIZED TEST SCORES
+  SAT: 1520 (Math: 790, Reading: 730)
+  ACT: 34

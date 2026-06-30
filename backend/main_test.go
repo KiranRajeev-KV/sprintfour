@@ -580,12 +580,14 @@ func TestUploadAcceptsTXTAndCreatesRegexRedactions(t *testing.T) {
 	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if payload.Accepted != 1 || payload.DocumentsCreated != 1 || payload.RedactionsCreated < 3 {
+	if payload.Accepted != 1 || payload.DocumentsCreated != 1 {
 		t.Fatalf("unexpected upload result: %+v", payload)
 	}
-	if payload.Items[0].Status == nil || *payload.Items[0].Status != "READY" {
-		t.Fatalf("expected READY upload item, got %+v", payload.Items[0])
+	if payload.Items[0].Status == nil || *payload.Items[0].Status != "QUEUED" {
+		t.Fatalf("expected QUEUED upload item, got %+v", payload.Items[0])
 	}
+
+	processUploadSync(t, store)
 
 	documents, total := store.Documents("", "", "", 50, 0)
 	if total != 1 || len(documents) != 1 {
@@ -648,6 +650,8 @@ func TestExportStillUsesAcceptedAndAddedRedactionsAfterUpload(t *testing.T) {
 		t.Fatalf("upload failed: %v", err)
 	}
 
+	processUploadSync(t, store)
+
 	documents, total := store.Documents("", "", "", 50, 0)
 	if total != 1 {
 		t.Fatalf("expected one document after upload, got %d", total)
@@ -688,6 +692,8 @@ func TestExportWritesRedactedFilesToExportedFolder(t *testing.T) {
 	}}, time.Date(2026, 6, 30, 10, 0, 0, 0, time.UTC)); err != nil {
 		t.Fatalf("upload failed: %v", err)
 	}
+
+	processUploadSync(t, store)
 
 	documents, total := store.Documents("", "", "", 50, 0)
 	if total != 1 {
@@ -910,4 +916,20 @@ func discardLogger() *slog.Logger {
 
 func runeIndex(text string, byteIndex int) int {
 	return len([]rune(text[:byteIndex]))
+}
+
+// processUploadSync runs regex detection for all QUEUED documents and commits
+// results synchronously. Used in tests that need inline processing.
+func processUploadSync(t *testing.T, store *Store) {
+	t.Helper()
+	docs, total := store.Documents("QUEUED", "", "", 1000, 0)
+	if total == 0 {
+		t.Fatal("no queued documents to process")
+	}
+	for _, doc := range docs {
+		detections := detectRuntimeRedactions(doc.Text)
+		if err := store.SetDocumentProcessed(doc.ID, detections); err != nil {
+			t.Fatalf("sync process doc %s: %v", doc.ID, err)
+		}
+	}
 }

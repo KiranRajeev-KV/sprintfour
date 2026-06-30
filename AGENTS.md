@@ -45,7 +45,6 @@ PII detection path:
 - Low-confidence, high-risk, failed, or ambiguous documents are routed to `NEEDS_REVIEW`.
 - AI/LLM fallback may be added later only for uncertain documents and only after the mock workflow works.
 - AI output is treated as another suggestion source, not as truth.
-- Presidio-style detection may be explored later, but do not add it without explicit user approval.
 
 ## Dependency policy
 
@@ -288,7 +287,6 @@ Do not build these in the 8-hour version unless the user explicitly changes scop
 - Production deployment hardening.
 - Full audit/compliance system.
 - Custom ML model.
-- Full Presidio integration.
 - Full rich text editor as the main workflow.
 - Real-time websocket updates.
 - Complex permissions.
@@ -306,7 +304,6 @@ After the MVP works, possible additions are:
 - Audit timeline for batch actions.
 - Persisted batch state with SQLite.
 - Redis-backed queue if reliability demonstration becomes important.
-- Presidio-style detector experiment.
 - ZIP export of redacted documents.
 - Search across documents.
 - Duplicate PII clustering across the batch.

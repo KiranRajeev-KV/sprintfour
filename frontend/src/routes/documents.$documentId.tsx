@@ -9,7 +9,10 @@ import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   Highlighter,
+  Keyboard,
   SearchCheck,
   ShieldAlert,
   ShieldCheck,
@@ -39,6 +42,7 @@ import {
   documentRedactionsQueryOptions,
   documentReviewSummaryQueryOptions,
   rejectRedaction,
+  reviewQueueQueryOptions,
 } from "#/lib/api";
 import {
   buildHighlightRenderModel,
@@ -78,6 +82,7 @@ export const Route = createFileRoute("/documents/$documentId")({
       context.queryClient.ensureQueryData(
         documentReviewSummaryQueryOptions(params.documentId),
       ),
+      context.queryClient.ensureQueryData(reviewQueueQueryOptions()),
     ]);
 
     return { documentId: params.documentId };
@@ -111,6 +116,7 @@ export const Route = createFileRoute("/documents/$documentId")({
 function DocumentReviewEditorPage() {
   const queryClient = useQueryClient();
   const { documentId } = Route.useLoaderData();
+  const navigate = Route.useNavigate();
 
   const [activeTab, setActiveTab] =
     useState<SuggestionsTabValue>("suggestions");
@@ -127,6 +133,7 @@ function DocumentReviewEditorPage() {
   const [approveFeedback, setApproveFeedback] = useState<FeedbackState | null>(
     null,
   );
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   const { data: document } = useSuspenseQuery(
     documentDetailQueryOptions(documentId),
@@ -137,6 +144,7 @@ function DocumentReviewEditorPage() {
   const { data: reviewSummary } = useSuspenseQuery(
     documentReviewSummaryQueryOptions(documentId),
   );
+  const { data: reviewQueue } = useSuspenseQuery(reviewQueueQueryOptions());
 
   const invalidateReviewQueries = useCallback(async () => {
     await Promise.all([
@@ -157,10 +165,26 @@ function DocumentReviewEditorPage() {
     () => [...redactions.items].sort(sortRedactionsForReview),
     [redactions.items],
   );
+  const selectedRedactionIndex = useMemo(
+    () => sortedRedactions.findIndex((item) => item.id === selectedRedactionID),
+    [selectedRedactionID, sortedRedactions],
+  );
+  const selectedRedaction =
+    selectedRedactionIndex >= 0 ? sortedRedactions[selectedRedactionIndex] : null;
   const renderModel = useMemo(
     () => buildHighlightRenderModel(document.text, redactions.items),
     [document.text, redactions.items],
   );
+  const reviewQueueIndex = useMemo(
+    () => reviewQueue.items.findIndex((item) => item.id === documentId),
+    [documentId, reviewQueue.items],
+  );
+  const previousQueueDocument =
+    reviewQueueIndex > 0 ? reviewQueue.items[reviewQueueIndex - 1] : null;
+  const nextQueueDocument =
+    reviewQueueIndex >= 0 && reviewQueueIndex < reviewQueue.items.length - 1
+      ? reviewQueue.items[reviewQueueIndex + 1]
+      : null;
 
   useEffect(() => {
     if (sortedRedactions.length === 0) {
@@ -173,6 +197,51 @@ function DocumentReviewEditorPage() {
         : sortedRedactions[0]!.id,
     );
   }, [sortedRedactions]);
+
+  const goToNeedsReviewQueue = useCallback(() => {
+    navigate({
+      to: "/",
+      search: {
+        status: "NEEDS_REVIEW",
+        risk: undefined,
+        q: "",
+        limit: 50,
+        offset: 0,
+      },
+    });
+  }, [navigate]);
+
+  const goToQueueDocument = useCallback(
+    (targetDocumentId: string | null) => {
+      if (!targetDocumentId) {
+        return;
+      }
+      navigate({
+        to: "/documents/$documentId",
+        params: { documentId: targetDocumentId },
+      });
+    },
+    [navigate],
+  );
+
+  const selectRelativeRedaction = useCallback(
+    (direction: 1 | -1) => {
+      if (sortedRedactions.length === 0) {
+        return;
+      }
+      const baseIndex = selectedRedactionIndex >= 0 ? selectedRedactionIndex : 0;
+      const nextIndex = Math.min(
+        sortedRedactions.length - 1,
+        Math.max(0, baseIndex + direction),
+      );
+      const nextRedaction = sortedRedactions[nextIndex];
+      if (nextRedaction) {
+        setSelectedRedactionID(nextRedaction.id);
+        setActiveTab("suggestions");
+      }
+    },
+    [selectedRedactionIndex, sortedRedactions],
+  );
 
   const reviewMutation = useMutation({
     mutationFn: ({
@@ -273,8 +342,105 @@ function DocumentReviewEditorPage() {
 
   const approveState = getApproveState(document.status, reviewSummary);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (isEditableTarget(event.target)) {
+        return;
+      }
+
+      if (event.key === "?") {
+        event.preventDefault();
+        setShowShortcuts((current) => !current);
+        return;
+      }
+      if (event.key === "Escape") {
+        setShowShortcuts(false);
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        if (approveState.canApprove && !approveMutation.isPending) {
+          event.preventDefault();
+          setApproveFeedback(null);
+          setSidebarFeedback(null);
+          approveMutation.mutate();
+        }
+        return;
+      }
+      if (event.key === "u" || event.key === "U") {
+        event.preventDefault();
+        goToNeedsReviewQueue();
+        return;
+      }
+      if (event.key === "J") {
+        event.preventDefault();
+        goToQueueDocument(nextQueueDocument?.id ?? null);
+        return;
+      }
+      if (event.key === "K") {
+        event.preventDefault();
+        goToQueueDocument(previousQueueDocument?.id ?? null);
+        return;
+      }
+      if (event.key === "j") {
+        event.preventDefault();
+        selectRelativeRedaction(1);
+        return;
+      }
+      if (event.key === "k") {
+        event.preventDefault();
+        selectRelativeRedaction(-1);
+        return;
+      }
+      if (event.key === "a" || event.key === "A") {
+        if (
+          selectedRedaction &&
+          selectedRedaction.review_state !== "ACCEPTED" &&
+          selectedRedaction.review_state !== "ADDED" &&
+          !reviewMutation.isPending
+        ) {
+          event.preventDefault();
+          setSidebarFeedback(null);
+          setApproveFeedback(null);
+          reviewMutation.mutate({
+            redactionId: selectedRedaction.id,
+            action: "accept",
+          });
+        }
+        return;
+      }
+      if (event.key === "r" || event.key === "R") {
+        if (
+          selectedRedaction &&
+          selectedRedaction.review_state !== "REJECTED" &&
+          !reviewMutation.isPending
+        ) {
+          event.preventDefault();
+          setSidebarFeedback(null);
+          setApproveFeedback(null);
+          reviewMutation.mutate({
+            redactionId: selectedRedaction.id,
+            action: "reject",
+          });
+        }
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    approveMutation,
+    approveState.canApprove,
+    goToNeedsReviewQueue,
+    goToQueueDocument,
+    nextQueueDocument?.id,
+    previousQueueDocument?.id,
+    reviewMutation,
+    selectRelativeRedaction,
+    selectedRedaction,
+  ]);
+
   return (
-    <main className="page-wrap min-h-[calc(100vh-2rem)] space-y-5 px-4 py-6 lg:px-0 lg:py-8">
+    <main className="page-wrap min-h-[calc(100vh-2rem)] space-y-5 px-4 pt-12 pb-8 lg:px-0 lg:pt-14 lg:pb-10">
       <header className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
           <Link
@@ -298,6 +464,14 @@ function DocumentReviewEditorPage() {
             <SearchCheck className="size-4" />
             Return to Needs Review queue
           </Link>
+          <button
+            type="button"
+            onClick={() => setShowShortcuts((current) => !current)}
+            className="inline-flex items-center gap-2 rounded-full border border-white/50 bg-white/58 px-4 py-2 text-sm text-[var(--sea-ink-soft)] transition hover:bg-white/75"
+          >
+            <Keyboard className="size-4" />
+            Shortcuts
+          </button>
         </div>
 
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -336,6 +510,19 @@ function DocumentReviewEditorPage() {
         </div>
       </header>
 
+      {showShortcuts ? (
+        <Card className="island-shell border-white/45 py-0">
+          <CardContent className="grid gap-3 px-5 py-4 md:grid-cols-2 xl:grid-cols-4">
+            <ShortcutHint keys="j / k" description="Next or previous suggestion" />
+            <ShortcutHint keys="Shift+J / Shift+K" description="Next or previous Needs Review document" />
+            <ShortcutHint keys="a / r" description="Accept or reject the selected suggestion" />
+            <ShortcutHint keys="Ctrl/Cmd+Enter" description="Approve document when allowed" />
+            <ShortcutHint keys="u" description="Return to the Needs Review queue" />
+            <ShortcutHint keys="?" description="Toggle this shortcuts panel" />
+          </CardContent>
+        </Card>
+      ) : null}
+
       {document.failure_hint ? (
         <PageAlert
           title="Failure hint present"
@@ -346,10 +533,10 @@ function DocumentReviewEditorPage() {
       <Card className="island-shell h-[calc(100vh-12rem)] min-h-[calc(100vh-12rem)] overflow-hidden border-white/45 py-0">
         <CardHeader className="shrink-0 border-b border-black/5 px-5 pt-5 pb-4">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="space-y-1">
-              <CardTitle className="text-2xl leading-tight text-[var(--sea-ink)]">
+            <div className="space-y-1 pt-1">
+              <h2 className="text-2xl leading-[1.2] font-semibold text-[var(--sea-ink)]">
                 Redaction review workspace
-              </CardTitle>
+              </h2>
               <p className="pt-0.5 text-sm leading-6 text-[var(--sea-ink-soft)]">
                 Resolve suggestions, add missed redactions, and approve only
                 when the blocking count reaches zero.
@@ -385,6 +572,16 @@ function DocumentReviewEditorPage() {
               activeTab={activeTab}
               onTabChange={setActiveTab}
               document={document}
+              reviewQueueIndex={reviewQueueIndex}
+              reviewQueueCount={reviewQueue.items.length}
+              previousQueueDocumentId={previousQueueDocument?.id ?? null}
+              nextQueueDocumentId={nextQueueDocument?.id ?? null}
+              onGoToPreviousQueueDocument={() =>
+                goToQueueDocument(previousQueueDocument?.id ?? null)
+              }
+              onGoToNextQueueDocument={() =>
+                goToQueueDocument(nextQueueDocument?.id ?? null)
+              }
               redactions={sortedRedactions}
               overlappingRedactionIDs={renderModel.overlappingRedactionIDs}
               reviewSummary={reviewSummary}
@@ -616,6 +813,12 @@ function ReviewSidebar({
   activeTab,
   onTabChange,
   document,
+  reviewQueueIndex,
+  reviewQueueCount,
+  previousQueueDocumentId,
+  nextQueueDocumentId,
+  onGoToPreviousQueueDocument,
+  onGoToNextQueueDocument,
   redactions,
   overlappingRedactionIDs,
   reviewSummary,
@@ -642,6 +845,12 @@ function ReviewSidebar({
   activeTab: SuggestionsTabValue;
   onTabChange: (value: SuggestionsTabValue) => void;
   document: DocumentDetail;
+  reviewQueueIndex: number;
+  reviewQueueCount: number;
+  previousQueueDocumentId: string | null;
+  nextQueueDocumentId: string | null;
+  onGoToPreviousQueueDocument: () => void;
+  onGoToNextQueueDocument: () => void;
   redactions: Redaction[];
   overlappingRedactionIDs: Set<string>;
   reviewSummary: ReviewSummary;
@@ -695,6 +904,35 @@ function ReviewSidebar({
         <p className="mt-3 text-xs leading-5 text-[var(--sea-ink-soft)]">
           {approveState.helperText}
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full border-white/60 bg-white/72"
+            disabled={!previousQueueDocumentId}
+            onClick={onGoToPreviousQueueDocument}
+          >
+            <ChevronLeft className="size-4" />
+            Previous in queue
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-full border-white/60 bg-white/72"
+            disabled={!nextQueueDocumentId}
+            onClick={onGoToNextQueueDocument}
+          >
+            Next in queue
+            <ChevronRight className="size-4" />
+          </Button>
+          {reviewQueueIndex >= 0 ? (
+            <span className="rounded-full border border-white/60 bg-white/65 px-3 py-1 text-xs text-[var(--sea-ink-soft)]">
+              Review queue position {reviewQueueIndex + 1} of {reviewQueueCount}
+            </span>
+          ) : null}
+        </div>
         {approveFeedback ? <InlineFeedback feedback={approveFeedback} /> : null}
         {sidebarFeedback ? <InlineFeedback feedback={sidebarFeedback} /> : null}
       </div>
@@ -842,7 +1080,11 @@ function AddRedactionFromSelection({
   onAddRedaction: () => void;
   isPending: boolean;
 }) {
-  const isLocked = documentStatus === "FAILED" || documentStatus === "EXPORTED";
+  const isLocked =
+    documentStatus === "QUEUED" ||
+    documentStatus === "PROCESSING" ||
+    documentStatus === "FAILED" ||
+    documentStatus === "EXPORTED";
 
   return (
     <div className="space-y-3">
@@ -855,9 +1097,11 @@ function AddRedactionFromSelection({
 
       {isLocked ? (
         <div className="rounded-[1rem] border border-amber-500/25 bg-amber-500/10 px-3 py-3 text-sm text-amber-950">
-          {documentStatus === "FAILED"
-            ? "Failed documents must be retried before manual review."
-            : "Exported documents are locked in this MVP."}
+          {documentStatus === "QUEUED" || documentStatus === "PROCESSING"
+            ? "This document is still being processed by the worker pool. Please wait for it to complete."
+            : documentStatus === "FAILED"
+              ? "Failed documents must be retried before manual review."
+              : "Exported documents are locked in this MVP."}
         </div>
       ) : selectedRange ? (
         <>
@@ -1166,6 +1410,25 @@ function ReviewStateBadge({ state }: { state: Redaction["review_state"] }) {
   );
 }
 
+function ShortcutHint({
+  keys,
+  description,
+}: {
+  keys: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-[1rem] border border-white/60 bg-white/62 px-4 py-3">
+      <div className="font-mono text-xs font-semibold text-[var(--sea-ink)]">
+        {keys}
+      </div>
+      <div className="mt-1 text-sm text-[var(--sea-ink-soft)]">
+        {description}
+      </div>
+    </div>
+  );
+}
+
 function ApprovalStatePill({
   status,
   reviewSummary,
@@ -1188,12 +1451,29 @@ function ApprovalStatePill({
       ) : (
         <ShieldAlert className="size-3.5" />
       )}
-      {status === "FAILED"
-        ? "Retry required"
-        : reviewSummary.can_approve
-          ? "Approval unlocked"
-          : `${reviewSummary.blocking_review_items} unresolved`}
+      {status === "QUEUED" || status === "PROCESSING"
+        ? "Processing…"
+        : status === "FAILED"
+          ? "Retry required"
+          : reviewSummary.can_approve
+            ? "Approval unlocked"
+            : `${reviewSummary.blocking_review_items} unresolved`}
     </div>
+  );
+}
+
+function isEditableTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+  const tagName = target.tagName.toLowerCase();
+  return (
+    target.isContentEditable ||
+    tagName === "input" ||
+    tagName === "textarea" ||
+    tagName === "select" ||
+    tagName === "button" ||
+    Boolean(target.closest('[contenteditable="true"]'))
   );
 }
 
@@ -1270,7 +1550,7 @@ function getApproveState(
     canApprove: true,
     helperText:
       status === "NEEDS_REVIEW"
-        ? "All blocking review items are cleared. Maya can now approve this reviewed exception document."
+        ? "All blocking review items are cleared. This reviewed exception document is ready for approval."
         : "This document is safe to approve from the review surface.",
     buttonLabel: (isPending) => (isPending ? "Approving…" : "Approve document"),
   };

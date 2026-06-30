@@ -1,0 +1,51 @@
+PERSONAL INFORMATION — FOR INTERNAL USE ONLY
+
+Full Name: Jennifer Marie Rodriguez
+Preferred Name: Jen Rodriguez
+Date of Birth: November 12, 1987
+Place of Birth: Portland, Oregon
+Gender: Female
+Marital Status: Married
+Spouse Name: Daniel Rodriguez
+
+Contact Information:
+  Primary Email: jennifer.rodriguez@example.com
+  Secondary Email: jenrod87@example.org
+  Mobile Phone: (555) 234-8901
+  Home Phone: (555) 876-5432
+  Work Phone: (555) 456-7890 ext. 1234
+
+Home Address:
+  742 Willow Creek Drive, Apt 3B
+  Springfield, Illinois 62704
+  United States
+
+Social Security Number: 987-65-4321
+Driver's License: IL-D876-5432-9876
+Passport Number: 561234567
+State ID Card: SID-IL-89-76543
+
+Emergency Contacts:
+  Name: Robert Michael Chen
+  Relationship: Brother
+  Phone: (555) 321-0987
+  Email: robert.chen@example.com
+
+Banking Information:
+  Bank: Chase Bank
+  Account Number: 4829173650
+  Routing Number: 021000021
+
+Medical Information:
+  Blood Type: A Positive
+  Allergies: Penicillin, Peanuts
+  Primary Care Physician: Dr. Amanda Foster
+  Insurance Provider: Blue Cross Blue Shield
+  Policy Number: BCBS-IL-8876543
+
+Online Accounts:
+  Username: jenrod87
+  Recovery Email: j.rodriguez.personal@example.com
+  Security Question: Mother's maiden name — Kowalski
+
+This document contains sensitive personally identifiable information and must be handled in accordance with data privacy policies.

@@ -8,12 +8,15 @@ import { createFileRoute } from '@tanstack/react-router'
 import {
   Download,
   FolderOpen,
+  LoaderCircle,
   Sparkles,
   Upload,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { DashboardSkeleton } from '#/components/dashboard-skeleton'
 import { DocumentsTable } from '#/components/documents-table'
 import { PageAlert } from '#/components/page-alert'
+import { Progress } from '#/components/ui/progress'
 import { SummaryCards } from '#/components/summary-cards'
 import { Button } from '#/components/ui/button'
 import {
@@ -43,6 +46,7 @@ import {
 import {
   documentStatusSchema,
   riskLevelSchema,
+  type BatchSummary,
   type LatestExportResponse,
   type UploadBatchResponse,
 } from '#/lib/schemas'
@@ -112,6 +116,13 @@ function Home() {
   const { data: documents } = useSuspenseQuery(documentsQueryOptions(search))
   const { data: latestExport } = useSuspenseQuery(latestExportQueryOptions())
 
+  const inProgress = summary.queued + summary.processing
+  const totalWithProgress = summary.total_documents
+  const progressPercent =
+    totalWithProgress > 0
+      ? Math.round(((totalWithProgress - inProgress) / totalWithProgress) * 100)
+      : 100
+
   const visibleDocumentIDs = useMemo(
     () => new Set(documents.items.map((document) => document.id)),
     [documents.items],
@@ -148,20 +159,13 @@ function Home() {
     mutationFn: bulkApproveDocuments,
     onSuccess: async (result) => {
       setSelectedIds({})
-      setTableFeedback({
-        tone: 'success',
-        message: `Approved ${result.approved ?? 0} documents. Skipped ${result.skipped}.`,
-      })
+      toast.success(`Approved ${result.approved ?? 0} documents. Skipped ${result.skipped}.`)
       await invalidateDashboardQueries()
     },
     onError: (error) => {
-      setTableFeedback({
-        tone: 'error',
-        message:
-          error instanceof ApiError
-            ? error.message
-            : 'Bulk approve failed. Please try again.',
-      })
+      toast.error(
+        error instanceof ApiError ? error.message : 'Bulk approve failed. Please try again.',
+      )
     },
   })
 
@@ -169,40 +173,26 @@ function Home() {
     mutationFn: bulkRetryDocuments,
     onSuccess: async (result) => {
       setSelectedIds({})
-      setTableFeedback({
-        tone: 'success',
-        message: `Retried ${result.retried ?? 0} failed documents. Skipped ${result.skipped}.`,
-      })
+      toast.success(`Retried ${result.retried ?? 0} failed documents. Skipped ${result.skipped}.`)
       await invalidateDashboardQueries()
     },
     onError: (error) => {
-      setTableFeedback({
-        tone: 'error',
-        message:
-          error instanceof ApiError
-            ? error.message
-            : 'Bulk retry failed. Please try again.',
-      })
+      toast.error(
+        error instanceof ApiError ? error.message : 'Bulk retry failed. Please try again.',
+      )
     },
   })
 
   const exportMutation = useMutation({
     mutationFn: exportApprovedDocuments,
     onSuccess: async (result) => {
-      setExportFeedback({
-        tone: 'success',
-        message: `Exported ${result.exported_documents} approved documents. ${result.needs_review} still need review.`,
-      })
+      toast.success(`Exported ${result.exported_documents} approved documents. ${result.needs_review} still need review.`)
       await invalidateDashboardQueries()
     },
     onError: (error) => {
-      setExportFeedback({
-        tone: 'error',
-        message:
-          error instanceof ApiError
-            ? error.message
-            : 'Export failed. Please try again.',
-      })
+      toast.error(
+        error instanceof ApiError ? error.message : 'Export failed. Please try again.',
+      )
     },
   })
 
@@ -211,23 +201,16 @@ function Home() {
     onSuccess: async (result) => {
       setSelectedIds({})
       setUploadResult(result)
-      setUploadFeedback({
-        tone: 'success',
-        message: `Accepted ${result.accepted} file(s). Rejected ${result.rejected}. Created ${result.documents_created} documents and ${result.redactions_created} redactions.`,
-      })
       setTableFeedback(null)
-      setExportFeedback(null)
+      const msg = `Accepted ${result.accepted} file(s). Rejected ${result.rejected}.`
+      toast.success(msg)
       await invalidateDashboardQueries()
     },
     onError: (error) => {
       setUploadResult(null)
-      setUploadFeedback({
-        tone: 'error',
-        message:
-          error instanceof ApiError
-            ? error.message
-            : 'Upload failed. Please try again.',
-      })
+      toast.error(
+        error instanceof ApiError ? error.message : 'Upload failed. Please try again.',
+      )
     },
   })
 
@@ -347,17 +330,25 @@ function Home() {
         <div className="rounded-[2rem] border border-white/55 bg-[linear-gradient(140deg,rgba(255,255,255,0.9),rgba(255,255,255,0.62))] p-6 shadow-[0_28px_60px_rgba(23,58,64,0.12)]">
           <div className="inline-flex items-center gap-2 rounded-full border border-white/60 bg-white/65 px-3 py-1 text-xs tracking-[0.18em] text-[var(--kicker)] uppercase">
             <Sparkles className="size-4" />
-            Working at volume
+            Redactlane
           </div>
           <h1 className="display-title mt-5 max-w-3xl text-5xl leading-[1.05] text-[var(--sea-ink)]">
-            Maya&rsquo;s batch command center for pushing the safe majority through first.
+            High-volume case file anonymization, built for exception-first review.
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--sea-ink-soft)]">
-            Upload plain-text case files, move the safe majority quickly, and route
-            only uncertain exceptions into focused review. The table stays central.
+            Redactlane moves safe documents forward in bulk, isolates risky files for
+            focused review, and keeps the batch table at the center of the workflow.
           </p>
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="mt-6 grid gap-3 sm:grid-cols-4">
             <CompactSignal label="Loaded" value={summary.total_documents} />
+            {inProgress > 0 ? (
+              <CompactSignal
+                label="In progress"
+                value={inProgress}
+                icon={LoaderCircle}
+                pulse
+              />
+            ) : null}
             <CompactSignal label="Ready" value={summary.ready} />
             <CompactSignal label="Needs review" value={summary.needs_review} />
           </div>
@@ -373,6 +364,21 @@ function Home() {
           result={uploadResult}
         />
       </section>
+
+      {inProgress > 0 ? (
+        <section className="rounded-[1.5rem] border border-blue-400/30 bg-blue-400/8 px-6 py-5">
+          <div className="flex items-center gap-3">
+            <LoaderCircle className="size-5 animate-spin text-blue-600" />
+            <div className="text-sm font-semibold text-blue-900">
+              Processing {inProgress} of {totalWithProgress} documents…
+            </div>
+          </div>
+          <Progress value={progressPercent} className="mt-3 h-2" />
+          <div className="mt-2 text-xs text-blue-700/70">
+            {progressPercent}% complete — the table updates automatically as documents finish.
+          </div>
+        </section>
+      ) : null}
 
       <SummaryCards summary={summary} />
 
@@ -411,14 +417,25 @@ function Home() {
 function CompactSignal({
   label,
   value,
+  icon: Icon,
+  pulse,
 }: {
   label: string
   value: number
+  icon?: typeof LoaderCircle
+  pulse?: boolean
 }) {
   return (
     <div className="rounded-[1.25rem] border border-white/55 bg-white/58 px-4 py-4">
-      <div className="text-[11px] tracking-[0.16em] text-[var(--sea-ink-soft)] uppercase">
-        {label}
+      <div className="flex items-center justify-between">
+        <div className="text-[11px] tracking-[0.16em] text-[var(--sea-ink-soft)] uppercase">
+          {label}
+        </div>
+        {Icon ? (
+          <Icon
+            className={`size-4 text-blue-500 ${pulse ? 'animate-spin' : ''}`}
+          />
+        ) : null}
       </div>
       <div className="mt-2 text-2xl font-black text-[var(--sea-ink)]">
         {value.toLocaleString()}
@@ -495,23 +512,24 @@ function UploadPanel({
           <UploadMetric label="Accepted" value={result?.accepted ?? 0} />
           <UploadMetric label="Rejected" value={result?.rejected ?? 0} />
           <UploadMetric label="Documents" value={result?.documents_created ?? 0} />
-          <UploadMetric label="Redactions" value={result?.redactions_created ?? 0} />
+          <UploadMetric label="Queued" value={result?.documents_created ?? 0} />
         </div>
 
         {feedback ? (
           <div
             className={
               feedback.tone === 'success'
-                ? 'text-sm text-emerald-900 dark:text-emerald-200'
-                : 'text-sm text-rose-900 dark:text-rose-200'
+                ? 'flex items-center gap-2 text-sm text-emerald-900 dark:text-emerald-200'
+                : 'flex items-center gap-2 text-sm text-rose-900 dark:text-rose-200'
             }
           >
+            {feedback.tone === 'success' ? <LoaderCircle className="size-4 animate-spin" /> : null}
             {feedback.message}
           </div>
         ) : (
           <div className="text-sm text-[var(--sea-ink-soft)]">
             `.txt` only. `replace` resets the in-memory batch. `append` keeps the current
-            documents and adds more.
+            documents and adds more. Documents are queued and processed asynchronously.
           </div>
         )}
 
@@ -597,20 +615,9 @@ function ExportPanel({
           />
         </div>
 
-        {feedback ? (
-          <div
-            className={
-              feedback.tone === 'success'
-                ? 'text-sm text-emerald-900 dark:text-emerald-200'
-                : 'text-sm text-rose-900 dark:text-rose-200'
-            }
-          >
-            {feedback.message}
-          </div>
-        ) : null}
-
         {latestExport.has_export ? (
-          <div className="grid gap-4 rounded-[1.35rem] border border-white/55 bg-white/65 p-4 md:grid-cols-6">
+          <div className="space-y-4 rounded-[1.35rem] border border-white/55 bg-white/65 p-4">
+            <div className="grid gap-4 md:grid-cols-6">
             <ExportMetric label="Export ID" value={latestExport.export_id} />
             <ExportMetric
               label="Exported"
@@ -623,7 +630,42 @@ function ExportPanel({
             <ExportMetric label="Needs review" value={String(latestExport.needs_review)} />
             <ExportMetric label="Failed" value={String(latestExport.failed)} />
             <ExportMetric label="Ready" value={String(latestExport.ready)} />
-            <div className="md:col-span-6 text-xs text-[var(--sea-ink-soft)]">
+            </div>
+
+            {latestExport.output_dir ? (
+              <div className="space-y-2">
+                <div className="text-[11px] tracking-[0.16em] text-[var(--sea-ink-soft)] uppercase">
+                  Export folder
+                </div>
+                <div className="rounded-[1rem] border border-white/55 bg-white/72 px-3 py-3 font-mono text-xs text-[var(--sea-ink)]">
+                  {latestExport.output_dir}
+                </div>
+              </div>
+            ) : null}
+
+            {latestExport.files && latestExport.files.length > 0 ? (
+              <div className="space-y-2">
+                <div className="text-[11px] tracking-[0.16em] text-[var(--sea-ink-soft)] uppercase">
+                  Exported files
+                </div>
+                <div className="rounded-[1rem] border border-white/55 bg-white/72 px-3 py-3">
+                  <ul className="space-y-2 text-sm text-[var(--sea-ink)]">
+                    {latestExport.files.slice(0, 6).map((file) => (
+                      <li key={file} className="font-mono text-xs">
+                        {file}
+                      </li>
+                    ))}
+                  </ul>
+                  {latestExport.files.length > 6 ? (
+                    <div className="mt-3 text-xs text-[var(--sea-ink-soft)]">
+                      +{latestExport.files.length - 6} more
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="text-xs text-[var(--sea-ink-soft)]">
               Created at {formatTimestamp(latestExport.created_at)}
             </div>
           </div>
