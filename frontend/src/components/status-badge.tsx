@@ -11,6 +11,10 @@ const statusStyles: Record<DocumentStatus, string> = {
     'border-rose-500/30 bg-rose-500/18 text-rose-950 dark:text-rose-100',
   CLEAN:
     'border-sky-500/30 bg-sky-500/14 text-sky-950 dark:text-sky-100',
+  APPROVED:
+    'border-teal-500/30 bg-teal-500/14 text-teal-950 dark:text-teal-100',
+  EXPORTED:
+    'border-violet-500/30 bg-violet-500/14 text-violet-950 dark:text-violet-100',
 }
 
 export function StatusBadge({ status }: { status: DocumentStatus }) {

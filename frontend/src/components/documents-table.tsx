@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -42,6 +43,11 @@ type SearchState = {
   offset: number
 }
 
+type MutationFeedback = {
+  tone: 'success' | 'error'
+  message: string
+}
+
 type DocumentsTableProps = {
   data: {
     items: DocumentListItem[]
@@ -51,6 +57,17 @@ type DocumentsTableProps = {
   }
   search: SearchState
   onSearchChange: (next: SearchState) => void
+  selectedIds: Record<string, boolean>
+  onToggleRow: (documentId: string, checked: boolean) => void
+  onTogglePage: (checked: boolean) => void
+  onClearSelection: () => void
+  onApproveSelected: () => void
+  onApproveSelectedClean: () => void
+  onRetrySelected: () => void
+  feedback?: MutationFeedback | null
+  isApprovePending: boolean
+  isRetryPending: boolean
+  emptyStateMessage?: string
 }
 
 const statusOptions: Array<{ label: string; value: DocumentStatus | 'ALL' }> = [
@@ -59,6 +76,8 @@ const statusOptions: Array<{ label: string; value: DocumentStatus | 'ALL' }> = [
   { label: 'Needs Review', value: 'NEEDS_REVIEW' },
   { label: 'Failed', value: 'FAILED' },
   { label: 'Clean', value: 'CLEAN' },
+  { label: 'Approved', value: 'APPROVED' },
+  { label: 'Exported', value: 'EXPORTED' },
 ]
 
 const riskOptions: Array<{ label: string; value: RiskLevel | 'ALL' }> = [
@@ -71,72 +90,111 @@ const riskOptions: Array<{ label: string; value: RiskLevel | 'ALL' }> = [
 
 const pageSizeOptions = [25, 50, 100]
 
-const columns: ColumnDef<DocumentListItem>[] = [
-  {
-    accessorKey: 'title',
-    header: 'Title',
-    cell: ({ row }) => (
-      <div className="min-w-[18rem] space-y-1">
-        <Link
-          to="/documents/$documentId"
-          params={{ documentId: row.original.id }}
-          className="font-semibold text-[var(--sea-ink)] underline-offset-4 hover:underline"
-        >
-          {row.original.title}
-        </Link>
-        <div className="text-xs text-[var(--sea-ink-soft)]">{row.original.id}</div>
-      </div>
-    ),
-  },
-  {
-    accessorKey: 'status',
-    header: 'Status',
-    cell: ({ row }) => <StatusBadge status={row.original.status} />,
-  },
-  {
-    accessorKey: 'risk_level',
-    header: 'Risk',
-    cell: ({ row }) => <RiskBadge risk={row.original.risk_level} />,
-  },
-  {
-    accessorKey: 'pii_count',
-    header: 'PII Count',
-    cell: ({ row }) => <span className="font-semibold">{row.original.pii_count}</span>,
-  },
-  {
-    accessorKey: 'low_confidence_count',
-    header: 'Low Confidence',
-    cell: ({ row }) => (
-      <span className={row.original.low_confidence_count > 0 ? 'font-semibold text-amber-700 dark:text-amber-200' : ''}>
-        {row.original.low_confidence_count}
-      </span>
-    ),
-  },
-  {
-    accessorKey: 'failure_hint',
-    header: 'Failure Hint',
-    cell: ({ row }) => (
-      <div className="max-w-[14rem] text-xs leading-5 text-[var(--sea-ink-soft)]">
-        {row.original.failure_hint ?? '—'}
-      </div>
-    ),
-  },
-  {
-    accessorKey: 'source_file',
-    header: 'Source File',
-    cell: ({ row }) => (
-      <div className="max-w-[16rem] truncate text-xs text-[var(--sea-ink-soft)]">
-        {row.original.source_file}
-      </div>
-    ),
-  },
-]
-
 export function DocumentsTable({
   data,
   search,
   onSearchChange,
+  selectedIds,
+  onToggleRow,
+  onTogglePage,
+  onClearSelection,
+  onApproveSelected,
+  onApproveSelectedClean,
+  onRetrySelected,
+  feedback,
+  isApprovePending,
+  isRetryPending,
+  emptyStateMessage,
 }: DocumentsTableProps) {
+  const selectedItems = data.items.filter((document) => selectedIds[document.id])
+  const selectedCount = selectedItems.length
+  const selectedReadyCount = selectedItems.filter((document) => document.status === 'READY').length
+  const selectedCleanCount = selectedItems.filter((document) => document.status === 'CLEAN').length
+  const selectedNeedsReviewCount = selectedItems.filter((document) => document.status === 'NEEDS_REVIEW').length
+  const selectedFailedCount = selectedItems.filter((document) => document.status === 'FAILED').length
+  const selectedApprovedCount = selectedItems.filter((document) => document.status === 'APPROVED').length
+  const selectedExportedCount = selectedItems.filter((document) => document.status === 'EXPORTED').length
+  const pageSelectedCount = selectedItems.length
+  const allPageSelected = data.items.length > 0 && pageSelectedCount === data.items.length
+  const somePageSelected = pageSelectedCount > 0 && !allPageSelected
+
+  const columns: ColumnDef<DocumentListItem>[] = [
+    {
+      id: 'selection',
+      header: () => (
+        <div className="flex justify-center">
+          <SelectionCheckbox
+            checked={allPageSelected}
+            indeterminate={somePageSelected}
+            onCheckedChange={(checked) => onTogglePage(checked)}
+            ariaLabel="Select current page"
+          />
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="flex justify-center">
+          <SelectionCheckbox
+            checked={Boolean(selectedIds[row.original.id])}
+            onCheckedChange={(checked) => onToggleRow(row.original.id, checked)}
+            ariaLabel={`Select ${row.original.id}`}
+          />
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'title',
+      header: 'Title',
+      cell: ({ row }) => {
+        const fullTitle = row.original.title
+        const displayTitle = truncateTitle(fullTitle, 200)
+
+        return (
+          <div className="min-w-[18rem] max-w-[34rem] space-y-1">
+            <Link
+              to="/documents/$documentId"
+              params={{ documentId: row.original.id }}
+              title={fullTitle}
+              className="line-clamp-3 font-semibold text-[var(--sea-ink)] underline-offset-4 hover:underline"
+            >
+              {displayTitle}
+            </Link>
+            <div className="text-xs text-[var(--sea-ink-soft)]">{row.original.id}</div>
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    },
+    {
+      accessorKey: 'risk_level',
+      header: 'Risk',
+      cell: ({ row }) => <RiskBadge risk={row.original.risk_level} />,
+    },
+    {
+      accessorKey: 'pii_count',
+      header: 'PII Count',
+      cell: ({ row }) => <span className="font-semibold">{row.original.pii_count}</span>,
+    },
+    {
+      accessorKey: 'low_confidence_count',
+      header: 'Low Confidence',
+      cell: ({ row }) => (
+        <span
+          className={
+            row.original.low_confidence_count > 0
+              ? 'font-semibold text-amber-700 dark:text-amber-200'
+              : ''
+          }
+        >
+          {row.original.low_confidence_count}
+        </span>
+      ),
+    },
+  ]
+
   const table = useReactTable({
     data: data.items,
     columns,
@@ -225,6 +283,101 @@ export function DocumentsTable({
       </CardHeader>
 
       <CardContent className="space-y-5 px-0 py-0">
+        {selectedCount > 0 ? (
+          <div className="border-b border-black/5 px-5 py-4">
+            <div className="flex flex-col gap-4 rounded-[1.4rem] border border-cyan-500/20 bg-cyan-500/8 px-4 py-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-2">
+                  <div className="text-sm font-semibold text-[var(--sea-ink)]">
+                    {selectedCount} selected on this page
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs text-[var(--sea-ink-soft)]">
+                    <SelectionPill label="READY" count={selectedReadyCount} />
+                    <SelectionPill label="CLEAN" count={selectedCleanCount} />
+                    <SelectionPill label="NEEDS_REVIEW" count={selectedNeedsReviewCount} />
+                    <SelectionPill label="FAILED" count={selectedFailedCount} />
+                    <SelectionPill label="APPROVED" count={selectedApprovedCount} />
+                    <SelectionPill label="EXPORTED" count={selectedExportedCount} />
+                  </div>
+                  <div className="text-xs leading-5 text-[var(--sea-ink-soft)]">
+                    Bulk approve now changes READY and CLEAN rows. Retry only changes
+                    FAILED rows. NEEDS_REVIEW is intentionally excluded from bulk approval.
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    className="rounded-full"
+                    disabled={
+                      selectedReadyCount + selectedCleanCount === 0 ||
+                      isApprovePending ||
+                      isRetryPending
+                    }
+                    onClick={onApproveSelected}
+                  >
+                    {isApprovePending
+                      ? 'Approving…'
+                      : `Approve selected READY + CLEAN (${selectedReadyCount + selectedCleanCount})`}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full border-white/60 bg-white/70"
+                    disabled={selectedCleanCount === 0 || isApprovePending || isRetryPending}
+                    onClick={onApproveSelectedClean}
+                  >
+                    {isApprovePending
+                      ? 'Approving…'
+                      : `Approve selected CLEAN (${selectedCleanCount})`}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full border-white/60 bg-white/70"
+                    disabled={selectedFailedCount === 0 || isRetryPending || isApprovePending}
+                    onClick={onRetrySelected}
+                  >
+                    {isRetryPending ? 'Retrying…' : `Retry selected FAILED (${selectedFailedCount})`}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="rounded-full"
+                    disabled={isApprovePending || isRetryPending}
+                    onClick={onClearSelection}
+                  >
+                    Clear selection
+                  </Button>
+                </div>
+              </div>
+
+              {feedback ? (
+                <div
+                  className={
+                    feedback.tone === 'success'
+                      ? 'text-sm text-emerald-900 dark:text-emerald-200'
+                      : 'text-sm text-rose-900 dark:text-rose-200'
+                  }
+                >
+                  {feedback.message}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : feedback ? (
+          <div className="border-b border-black/5 px-5 py-4">
+            <div
+              className={
+                feedback.tone === 'success'
+                  ? 'text-sm text-emerald-900 dark:text-emerald-200'
+                  : 'text-sm text-rose-900 dark:text-rose-200'
+              }
+            >
+              {feedback.message}
+            </div>
+          </div>
+        ) : null}
+
         <div className="flex flex-col gap-3 border-b border-black/5 px-5 py-4 text-sm text-[var(--sea-ink-soft)] sm:flex-row sm:items-center sm:justify-between">
           <div>
             Showing <span className="font-semibold text-[var(--sea-ink)]">{start}</span>
@@ -266,7 +419,10 @@ export function DocumentsTable({
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} className="px-3 py-3 text-xs tracking-[0.16em] uppercase">
+                    <TableHead
+                      key={header.id}
+                      className="px-3 py-3 text-xs tracking-[0.16em] uppercase"
+                    >
                       {header.isPlaceholder
                         ? null
                         : flexRender(header.column.columnDef.header, header.getContext())}
@@ -288,8 +444,11 @@ export function DocumentsTable({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="px-3 py-14 text-center text-sm text-[var(--sea-ink-soft)]">
-                    No documents match the current filters.
+                  <TableCell
+                    colSpan={columns.length}
+                    className="px-3 py-14 text-center text-sm text-[var(--sea-ink-soft)]"
+                  >
+                    {emptyStateMessage ?? 'No documents match the current filters.'}
                   </TableCell>
                 </TableRow>
               )}
@@ -338,4 +497,51 @@ export function DocumentsTable({
       </CardContent>
     </Card>
   )
+}
+
+function SelectionCheckbox({
+  checked,
+  indeterminate = false,
+  onCheckedChange,
+  ariaLabel,
+}: {
+  checked: boolean
+  indeterminate?: boolean
+  onCheckedChange: (checked: boolean) => void
+  ariaLabel: string
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.indeterminate = indeterminate
+    }
+  }, [indeterminate])
+
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      aria-label={ariaLabel}
+      onChange={(event) => onCheckedChange(event.target.checked)}
+      className="size-4 rounded border border-[rgba(22,74,83,0.25)] accent-[var(--lagoon-deep)]"
+    />
+  )
+}
+
+function SelectionPill({ label, count }: { label: string; count: number }) {
+  return (
+    <span className="rounded-full border border-white/60 bg-white/70 px-2.5 py-1">
+      {label}: <span className="font-semibold text-[var(--sea-ink)]">{count}</span>
+    </span>
+  )
+}
+
+function truncateTitle(value: string, maxChars: number) {
+  const chars = Array.from(value)
+  if (chars.length <= maxChars) {
+    return value
+  }
+  return `${chars.slice(0, maxChars).join('')}…`
 }

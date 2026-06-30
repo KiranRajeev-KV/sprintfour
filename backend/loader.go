@@ -279,7 +279,7 @@ func valueOrBoolDefault(value *bool, fallback bool) bool {
 
 func normalizeStatus(value string) string {
 	switch strings.ToUpper(strings.TrimSpace(value)) {
-	case "READY", "NEEDS_REVIEW", "FAILED", "CLEAN":
+	case "READY", "NEEDS_REVIEW", "FAILED", "CLEAN", "APPROVED", "EXPORTED":
 		return strings.ToUpper(strings.TrimSpace(value))
 	default:
 		return "READY"

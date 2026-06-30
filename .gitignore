@@ -1,3 +1,4 @@
 dataset/raw/cuad_v1/
+exported/
 __pycache__/
 *.pyc
