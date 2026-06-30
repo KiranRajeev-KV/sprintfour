@@ -1,6 +1,6 @@
 # Redactlane
 
-[Hackathon writeup](./writeup.md)
+[Hackathon writeup](./writeup.md) · [Demo video](./demo.mp4)
 
 Redactlane is a batch-first anonymization workflow for high-volume case file review. It is built for exception-first triage: safe files move forward quickly, risky files are routed to focused review, failed files can be retried, and approved files can be exported without blocking the rest of the batch.
 
