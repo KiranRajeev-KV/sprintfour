@@ -130,3 +130,6 @@ Backend API and workflow details are documented in [backend/README.md](backend/R
 ### Benchmark
 
 Measured upload timings and dataset-size benchmarks are documented in [benchmark.md](benchmark.md). The current benchmark document is for pure regex detection only, without the optional GLiNER sidecar.
+
+### Arch
+[Arch](arch.png)
