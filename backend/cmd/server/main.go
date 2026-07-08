@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 )
@@ -20,13 +19,13 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	dotEnvPath, err := config.LoadDotEnv()
+	runtimeConfig, err := config.LoadRuntime()
 	if err != nil {
-		logger.Error("dotenv_load_failed", slog.String("error", err.Error()))
+		logger.Error("config_load_failed", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
-	if dotEnvPath != "" {
-		logger.Info("dotenv_loaded", slog.String("path", dotEnvPath))
+	if runtimeConfig.DotEnvPath != "" {
+		logger.Info("dotenv_loaded", slog.String("path", runtimeConfig.DotEnvPath))
 	} else {
 		logger.Info("dotenv_not_found")
 	}
@@ -41,21 +40,14 @@ func main() {
 		slog.Int("failed_count", summary.Failed),
 	)
 
-	workerCount := envInt("WORKER_COUNT", 8)
-	queueDepth := envInt("QUEUE_DEPTH", 200)
-	detector := detector.NewRuntimeDetector(logger, detector.Config{
-		GLiNEREnabled:        envBool("GLINER_ENABLED", false),
-		GLiNERURL:            envString("GLINER_URL", "http://127.0.0.1:8090"),
-		GLiNERTimeoutMS:      envInt("GLINER_TIMEOUT_MS", 2500),
-		GLiNERMaxConcurrency: envInt("GLINER_MAX_CONCURRENCY", 1),
-	})
-	workerPool := worker.NewWorkerPool(logger, store, detector, workerCount, queueDepth)
+	detector := detector.NewRuntimeDetector(logger, runtimeConfig.Detector)
+	workerPool := worker.NewWorkerPool(logger, store, detector, runtimeConfig.WorkerCount, runtimeConfig.QueueDepth)
 	store.SetJobSubmitter(workerPool)
 	workerPool.Start()
 
 	router := httpapi.NewRouter(logger, store)
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    runtimeConfig.HTTPAddr,
 		Handler: router,
 	}
 
@@ -84,40 +76,4 @@ func main() {
 	}
 
 	logger.Info("shutdown_complete")
-}
-
-func envInt(key string, fallback int) int {
-	raw := os.Getenv(key)
-	if raw == "" {
-		return fallback
-	}
-	val, err := strconv.Atoi(raw)
-	if err != nil {
-		return fallback
-	}
-	return val
-}
-
-func envBool(key string, fallback bool) bool {
-	raw := os.Getenv(key)
-	if raw == "" {
-		return fallback
-	}
-
-	switch raw {
-	case "1", "true", "TRUE", "True", "yes", "YES", "on", "ON":
-		return true
-	case "0", "false", "FALSE", "False", "no", "NO", "off", "OFF":
-		return false
-	default:
-		return fallback
-	}
-}
-
-func envString(key, fallback string) string {
-	raw := os.Getenv(key)
-	if raw == "" {
-		return fallback
-	}
-	return raw
 }

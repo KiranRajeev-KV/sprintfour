@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// LoadDotEnv loads the closest .env file into the current process without overwriting existing variables.
 func LoadDotEnv() (string, error) {
 	path, ok, err := FindDotEnv()
 	if err != nil {
@@ -62,6 +63,7 @@ func LoadDotEnv() (string, error) {
 	return path, nil
 }
 
+// FindDotEnv searches the working directory and parent directories for a .env file.
 func FindDotEnv() (string, bool, error) {
 	workingDir, err := os.Getwd()
 	if err != nil {
