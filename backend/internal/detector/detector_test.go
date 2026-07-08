@@ -1,6 +1,9 @@
-package main
+package detector
 
-import "testing"
+import (
+	"backend/internal/document"
+	"testing"
+)
 
 func TestDetectRuntimeRedactionsRegexOwnedExcludesGLiNEROwnedLabels(t *testing.T) {
 	text := "Jane Smith lives at 742 Willow Creek Drive, Apt 3B, Springfield, IL 62704. Email jane@example.com. Routing Number 021000021."
@@ -14,16 +17,16 @@ func TestDetectRuntimeRedactionsRegexOwnedExcludesGLiNEROwnedLabels(t *testing.T
 }
 
 func TestMergeRuntimeDetectionsPrefersRegexOwnedStructuredLabels(t *testing.T) {
-	merged := mergeRuntimeDetections(
-		[]runtimeDetection{{
+	merged := MergeRuntimeDetections(
+		[]document.RuntimeDetection{{
 			Start:      10,
 			End:        19,
 			Text:       "021000021",
 			Type:       "ROUTING_NUMBER",
-			Confidence: float64Pointer(0.61),
+			Confidence: float64Ptr(0.61),
 			Source:     "gliner_local",
 		}},
-		[]runtimeDetection{{
+		[]document.RuntimeDetection{{
 			Start:      10,
 			End:        19,
 			Text:       "021000021",
@@ -42,16 +45,16 @@ func TestMergeRuntimeDetectionsPrefersRegexOwnedStructuredLabels(t *testing.T) {
 }
 
 func TestMergeRuntimeDetectionsPrefersGLiNERPhoneOverRegexPhoneOverlap(t *testing.T) {
-	merged := mergeRuntimeDetections(
-		[]runtimeDetection{{
+	merged := MergeRuntimeDetections(
+		[]document.RuntimeDetection{{
 			Start:      5,
 			End:        19,
 			Text:       "(408) 555-0199",
 			Type:       "PHONE",
-			Confidence: float64Pointer(0.91),
+			Confidence: float64Ptr(0.91),
 			Source:     "gliner_local",
 		}},
-		[]runtimeDetection{{
+		[]document.RuntimeDetection{{
 			Start:      5,
 			End:        19,
 			Text:       "(408) 555-0199",
@@ -69,7 +72,7 @@ func TestMergeRuntimeDetectionsPrefersGLiNERPhoneOverRegexPhoneOverlap(t *testin
 	}
 }
 
-func assertNoDetectionType(t *testing.T, detections []runtimeDetection, blockedType string) {
+func assertNoDetectionType(t *testing.T, detections []document.RuntimeDetection, blockedType string) {
 	t.Helper()
 
 	for _, detection := range detections {
@@ -77,4 +80,19 @@ func assertNoDetectionType(t *testing.T, detections []runtimeDetection, blockedT
 			t.Fatalf("unexpected detection type %s in %+v", blockedType, detection)
 		}
 	}
+}
+
+func assertDetection(t *testing.T, detections []document.RuntimeDetection, wantType, wantText string) {
+	t.Helper()
+
+	for _, detection := range detections {
+		if detection.Type == wantType && detection.Text == wantText {
+			return
+		}
+	}
+	t.Fatalf("missing detection %s:%q in %+v", wantType, wantText, detections)
+}
+
+func float64Ptr(value float64) *float64 {
+	return &value
 }

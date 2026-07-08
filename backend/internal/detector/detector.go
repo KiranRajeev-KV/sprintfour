@@ -1,20 +1,21 @@
-package main
+package detector
 
 import (
+	"backend/internal/document"
 	"context"
 	"log/slog"
 	"sort"
 )
 
 type Detector interface {
-	Detect(ctx context.Context, documentID, text string) ([]runtimeDetection, error)
+	Detect(ctx context.Context, documentID, text string) ([]document.RuntimeDetection, error)
 }
 
-type detectorConfig struct {
-	glinerEnabled        bool
-	glinerURL            string
-	glinerTimeoutMS      int
-	glinerMaxConcurrency int
+type Config struct {
+	GLiNEREnabled        bool
+	GLiNERURL            string
+	GLiNERTimeoutMS      int
+	GLiNERMaxConcurrency int
 }
 
 type runtimeDetector struct {
@@ -22,24 +23,24 @@ type runtimeDetector struct {
 	glinerClient *glinerClient
 }
 
-func newRuntimeDetector(logger *slog.Logger, cfg detectorConfig) Detector {
+func NewRuntimeDetector(logger *slog.Logger, cfg Config) Detector {
 	detector := &runtimeDetector{
 		logger: logger,
 	}
-	if cfg.glinerEnabled {
+	if cfg.GLiNEREnabled {
 		detector.glinerClient = newGLiNERClient(
 			logger,
-			cfg.glinerURL,
-			cfg.glinerTimeoutMS,
-			cfg.glinerMaxConcurrency,
+			cfg.GLiNERURL,
+			cfg.GLiNERTimeoutMS,
+			cfg.GLiNERMaxConcurrency,
 		)
 	}
 	return detector
 }
 
-func (d *runtimeDetector) Detect(ctx context.Context, documentID, text string) ([]runtimeDetection, error) {
+func (d *runtimeDetector) Detect(ctx context.Context, documentID, text string) ([]document.RuntimeDetection, error) {
 	if d.glinerClient == nil {
-		return detectRuntimeRedactions(text), nil
+		return document.DetectRuntimeRedactions(text), nil
 	}
 
 	glinerDetections, err := d.glinerClient.Detect(ctx, documentID, text)
@@ -48,27 +49,22 @@ func (d *runtimeDetector) Detect(ctx context.Context, documentID, text string) (
 			slog.String("document_id", documentID),
 			slog.String("error", err.Error()),
 		)
-		return detectRuntimeRedactions(text), nil
+		return document.DetectRuntimeRedactions(text), nil
 	}
 
 	regexDetections := detectRuntimeRedactionsRegexOwned(text)
-	return mergeRuntimeDetections(glinerDetections, regexDetections), nil
+	return MergeRuntimeDetections(glinerDetections, regexDetections), nil
 }
 
-func detectRuntimeRedactionsRegexOwned(text string) []runtimeDetection {
-	return detectRuntimeRedactionsWithOptions(text, runtimeDetectionOptions{
-		includeGLiNEROwned: false,
-		includeRegexOwned:  true,
+func detectRuntimeRedactionsRegexOwned(text string) []document.RuntimeDetection {
+	return document.DetectRuntimeRedactionsWithOptions(text, document.RuntimeDetectionOptions{
+		IncludeGLiNEROwned: false,
+		IncludeRegexOwned:  true,
 	})
 }
 
-type runtimeDetectionOptions struct {
-	includeGLiNEROwned bool
-	includeRegexOwned  bool
-}
-
-func mergeRuntimeDetections(primary []runtimeDetection, secondary []runtimeDetection) []runtimeDetection {
-	combined := make([]runtimeDetection, 0, len(primary)+len(secondary))
+func MergeRuntimeDetections(primary []document.RuntimeDetection, secondary []document.RuntimeDetection) []document.RuntimeDetection {
+	combined := make([]document.RuntimeDetection, 0, len(primary)+len(secondary))
 	combined = append(combined, primary...)
 	combined = append(combined, secondary...)
 
@@ -82,7 +78,7 @@ func mergeRuntimeDetections(primary []runtimeDetection, secondary []runtimeDetec
 		return combined[i].Start < combined[j].Start
 	})
 
-	filtered := make([]runtimeDetection, 0, len(combined))
+	filtered := make([]document.RuntimeDetection, 0, len(combined))
 	for _, candidate := range combined {
 		if candidate.Start >= candidate.End {
 			continue
@@ -124,7 +120,7 @@ func mergeRuntimeDetections(primary []runtimeDetection, secondary []runtimeDetec
 	return filtered
 }
 
-func compareRuntimeDetections(left, right runtimeDetection) int {
+func compareRuntimeDetections(left, right document.RuntimeDetection) int {
 	leftPriority := runtimeDetectionPriority(left)
 	rightPriority := runtimeDetectionPriority(right)
 	if leftPriority != rightPriority {
@@ -156,7 +152,7 @@ func runtimeDetectionConfidenceValue(value *float64) float64 {
 	return *value
 }
 
-func runtimeDetectionPriority(detection runtimeDetection) int {
+func runtimeDetectionPriority(detection document.RuntimeDetection) int {
 	switch {
 	case isRegexOwnedLabel(detection.Type):
 		if detection.Source == "runtime_regex" {
@@ -186,7 +182,7 @@ func normalizeSemanticLabel(label string) string {
 	}
 }
 
-func overlapsHeavily(left, right runtimeDetection) bool {
+func overlapsHeavily(left, right document.RuntimeDetection) bool {
 	start := max(left.Start, right.Start)
 	end := min(left.End, right.End)
 	if start >= end {

@@ -1,4 +1,4 @@
-package main
+package store
 
 import (
 	"fmt"
@@ -8,6 +8,14 @@ import (
 )
 
 var exportOutputDir = defaultExportOutputDir()
+
+func ExportOutputDir() string {
+	return exportOutputDir
+}
+
+func SetExportOutputDir(dir string) {
+	exportOutputDir = dir
+}
 
 func defaultExportOutputDir() string {
 	workingDir, err := os.Getwd()

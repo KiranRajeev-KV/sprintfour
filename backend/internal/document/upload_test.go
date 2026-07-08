@@ -1,4 +1,4 @@
-package main
+package document
 
 import (
 	"os"
@@ -7,12 +7,12 @@ import (
 )
 
 func TestDetectRuntimeRedactionsCapturesLabeledStructuredPII(t *testing.T) {
-	textBytes, err := os.ReadFile("../dataset/raw/manual_synthetic_txt/dense_pii.txt")
+	textBytes, err := os.ReadFile("../../../dataset/raw/manual_synthetic_txt/dense_pii.txt")
 	if err != nil {
 		t.Fatalf("read sample: %v", err)
 	}
 
-	detections := detectRuntimeRedactions(string(textBytes))
+	detections := DetectRuntimeRedactions(string(textBytes))
 
 	assertDetection(t, detections, "DOB", "01/15/1980")
 	assertDetection(t, detections, "ADDRESS", "742 Willow Creek Drive, Apt 3B, Springfield, IL 62704")
@@ -27,12 +27,12 @@ func TestDetectRuntimeRedactionsCapturesLabeledStructuredPII(t *testing.T) {
 }
 
 func TestDetectRuntimeRedactionsCapturesBusinessContractPII(t *testing.T) {
-	textBytes, err := os.ReadFile("../dataset/raw/manual_synthetic_txt/business_contract.txt")
+	textBytes, err := os.ReadFile("../../../dataset/raw/manual_synthetic_txt/business_contract.txt")
 	if err != nil {
 		t.Fatalf("read sample: %v", err)
 	}
 
-	detections := detectRuntimeRedactions(string(textBytes))
+	detections := DetectRuntimeRedactions(string(textBytes))
 
 	assertDetection(t, detections, "ADDRESS", "1800 Technology Parkway, Suite 200 San Jose, CA 95110")
 	assertDetection(t, detections, "ADDRESS", "100 Innovation Drive, Suite 400 San Francisco, CA 94105")
@@ -43,12 +43,13 @@ func TestDetectRuntimeRedactionsCapturesBusinessContractPII(t *testing.T) {
 
 func TestDetectRuntimeRedactionsUSPhoneIncludesOpeningParenthesis(t *testing.T) {
 	text := "Call me at (408) 555-0199 tomorrow."
-	detections := detectRuntimeRedactions(text)
+
+	detections := DetectRuntimeRedactions(text)
 
 	assertDetection(t, detections, "US_PHONE", "(408) 555-0199")
 }
 
-func assertDetection(t *testing.T, detections []runtimeDetection, wantType, wantText string) {
+func assertDetection(t *testing.T, detections []RuntimeDetection, wantType, wantText string) {
 	t.Helper()
 
 	wantText = normalizeWhitespace(wantText)

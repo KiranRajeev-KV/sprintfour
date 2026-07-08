@@ -1,6 +1,9 @@
-package main
+package worker
 
 import (
+	"backend/internal/detector"
+	"backend/internal/document"
+	"backend/internal/store"
 	"context"
 	"fmt"
 	"log/slog"
@@ -30,8 +33,9 @@ type Job struct {
 }
 
 type WorkerPool struct {
-	store    *Store
-	detector Detector
+	logger   *slog.Logger
+	store    *store.Store
+	detector detector.Detector
 	jobs     chan *Job
 	size     int
 	wg       sync.WaitGroup
@@ -43,9 +47,19 @@ type WorkerPool struct {
 	jobSeq   int
 }
 
-func NewWorkerPool(store *Store, detector Detector, workerCount, queueDepth int) *WorkerPool {
+func NewWorkerPool(logger *slog.Logger, store *store.Store, detector detector.Detector, workerCount, queueDepth int) *WorkerPool {
 	ctx, cancel := context.WithCancel(context.Background())
+	if logger == nil {
+		logger = slog.Default()
+	}
+	if workerCount <= 0 {
+		workerCount = 1
+	}
+	if queueDepth <= 0 {
+		queueDepth = workerCount
+	}
 	return &WorkerPool{
+		logger:   logger,
 		store:    store,
 		detector: detector,
 		jobs:     make(chan *Job, queueDepth),
@@ -63,14 +77,14 @@ func (p *WorkerPool) Start() {
 		return
 	}
 	p.started = true
-	for i := range p.size {
+	for i := 0; i < p.size; i++ {
 		p.wg.Add(1)
 		go p.worker(i)
 	}
-	slog.Info("worker_pool_started", slog.Int("size", p.size))
+	p.logger.Info("worker_pool_started", slog.Int("size", p.size))
 }
 
-func (p *WorkerPool) Submit(documentID string, text string) *Job {
+func (p *WorkerPool) Submit(documentID string, text string) {
 	p.mu.Lock()
 	p.jobSeq++
 	job := &Job{
@@ -88,8 +102,6 @@ func (p *WorkerPool) Submit(documentID string, text string) *Job {
 	case p.jobs <- job:
 	case <-p.ctx.Done():
 	}
-
-	return job
 }
 
 func (p *WorkerPool) JobStatus(jobID string) (*Job, bool) {
@@ -120,7 +132,7 @@ func (p *WorkerPool) Shutdown(ctx context.Context) error {
 
 func (p *WorkerPool) worker(id int) {
 	defer p.wg.Done()
-	slog.Debug("worker_started", slog.Int("worker_id", id))
+	p.logger.Debug("worker_started", slog.Int("worker_id", id))
 	for {
 		select {
 		case <-p.ctx.Done():
@@ -139,7 +151,12 @@ func (p *WorkerPool) processJob(job *Job) {
 	job.Status = JobRunning
 	p.mu.Unlock()
 
-	var detections []runtimeDetection
+	if err := p.store.SetDocumentProcessing(job.DocumentID); err != nil {
+		p.handleFailure(job, err.Error())
+		return
+	}
+
+	var detections []document.RuntimeDetection
 	var execErr error
 
 	func() {
@@ -150,7 +167,7 @@ func (p *WorkerPool) processJob(job *Job) {
 		}()
 
 		if p.detector == nil {
-			detections = detectRuntimeRedactions(job.text)
+			detections = document.DetectRuntimeRedactions(job.text)
 			return
 		}
 		detections, execErr = p.detector.Detect(p.ctx, job.DocumentID, job.text)
@@ -170,7 +187,7 @@ func (p *WorkerPool) processJob(job *Job) {
 	job.Status = JobSucceeded
 	p.mu.Unlock()
 
-	slog.Info("job_succeeded",
+	p.logger.Info("job_succeeded",
 		slog.String("job_id", job.ID),
 		slog.String("document_id", job.DocumentID),
 		slog.Int("detections", len(detections)),
@@ -184,7 +201,7 @@ func (p *WorkerPool) handleFailure(job *Job, errMsg string) {
 	if job.Attempts <= job.MaxRetries {
 		job.Status = JobQueued
 		delay := time.Duration(job.Attempts) * time.Second
-		slog.Warn("job_retry",
+		p.logger.Warn("job_retry",
 			slog.String("job_id", job.ID),
 			slog.String("document_id", job.DocumentID),
 			slog.Int("attempt", job.Attempts),
@@ -200,7 +217,7 @@ func (p *WorkerPool) handleFailure(job *Job, errMsg string) {
 	} else {
 		job.Status = JobFailed
 		p.store.SetDocumentFailed(job.DocumentID, errMsg)
-		slog.Error("job_failed_permanent",
+		p.logger.Error("job_failed_permanent",
 			slog.String("job_id", job.ID),
 			slog.String("document_id", job.DocumentID),
 			slog.Int("attempts", job.Attempts),

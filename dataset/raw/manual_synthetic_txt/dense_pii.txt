@@ -8,7 +8,7 @@ His email is john.smith@example.com and his phone is (555) 234-8901.
 Visa ending 0366, bank account 100092837465 (routing 021000021).
 Passport 561234567, DL IL-D876-5432-9876, patient ID PAT-2026-0047291.
 
-RECORD 2: Patricia A. Williamson, DOB 03/22/1955, SSN 987-65-4321,
+RECORD 2: Patricia A. Williamson, DOB 03/22/1955, SSN 988-65-4321,
 email patricia.williamson@example.com, phone (555) 891-2345,
 address 1824 Cedar Lane, Unit 7, Evanston, IL 60201. Insurance
 BCBS-IL-8876543, MRN MRN-837465912, Visa 4532-0151-1283-0366,

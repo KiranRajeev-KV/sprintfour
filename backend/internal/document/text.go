@@ -1,8 +1,8 @@
-package main
+package document
 
 import "fmt"
 
-func substringByRuneIndex(text string, start, end int) (string, error) {
+func SubstringByRuneIndex(text string, start, end int) (string, error) {
 	if start < 0 || end < 0 || end < start {
 		return "", fmt.Errorf("invalid rune span [%d,%d)", start, end)
 	}

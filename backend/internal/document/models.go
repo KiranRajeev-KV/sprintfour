@@ -1,4 +1,4 @@
-package main
+package document
 
 type Document struct {
 	ID                   string
@@ -220,3 +220,5 @@ type UploadBatchResult struct {
 	RedactionsCreated int                `json:"redactions_created"`
 	Items             []UploadItemResult `json:"items"`
 }
+
+const LowConfidenceThreshold = 0.70

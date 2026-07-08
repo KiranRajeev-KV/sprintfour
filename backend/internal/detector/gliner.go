@@ -1,6 +1,7 @@
-package main
+package detector
 
 import (
+	"backend/internal/document"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -57,7 +58,7 @@ func newGLiNERClient(logger *slog.Logger, baseURL string, timeoutMS int, maxConc
 	}
 }
 
-func (c *glinerClient) Detect(ctx context.Context, documentID, text string) ([]runtimeDetection, error) {
+func (c *glinerClient) Detect(ctx context.Context, documentID, text string) ([]document.RuntimeDetection, error) {
 	select {
 	case c.permits <- struct{}{}:
 	case <-ctx.Done():
@@ -97,7 +98,7 @@ func (c *glinerClient) Detect(ctx context.Context, documentID, text string) ([]r
 		return nil, fmt.Errorf("decode gliner response: %w", err)
 	}
 
-	detections := make([]runtimeDetection, 0, len(payload.Items))
+	detections := make([]document.RuntimeDetection, 0, len(payload.Items))
 	for _, item := range payload.Items {
 		mappedType := mapGLiNERLabel(item.Label)
 		if mappedType == "" {
@@ -108,11 +109,11 @@ func (c *glinerClient) Detect(ctx context.Context, documentID, text string) ([]r
 		}
 
 		reviewState := "REVIEW"
-		if shouldAutoAcceptGLiNERDetection(mappedType, item.Score) {
+		if ShouldAutoAcceptGLiNERDetection(mappedType, item.Score) {
 			reviewState = "ACCEPTED"
 		}
 
-		detections = append(detections, runtimeDetection{
+		detections = append(detections, document.RuntimeDetection{
 			Start:           item.Start,
 			End:             item.End,
 			Text:            item.Text,
@@ -156,7 +157,7 @@ func mapGLiNERLabel(label string) string {
 	}
 }
 
-func shouldAutoAcceptGLiNERDetection(label string, score float64) bool {
+func ShouldAutoAcceptGLiNERDetection(label string, score float64) bool {
 	switch label {
 	case "EMAIL":
 		return score >= 0.75

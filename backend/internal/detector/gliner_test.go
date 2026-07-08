@@ -1,4 +1,4 @@
-package main
+package detector
 
 import "testing"
 
@@ -21,9 +21,9 @@ func TestShouldAutoAcceptGLiNERDetectionUsesLoweredThresholds(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-		got := shouldAutoAcceptGLiNERDetection(testCase.label, testCase.score)
+		got := ShouldAutoAcceptGLiNERDetection(testCase.label, testCase.score)
 		if got != testCase.want {
-			t.Fatalf("shouldAutoAcceptGLiNERDetection(%q, %.2f) = %v, want %v", testCase.label, testCase.score, got, testCase.want)
+			t.Fatalf("ShouldAutoAcceptGLiNERDetection(%q, %.2f) = %v, want %v", testCase.label, testCase.score, got, testCase.want)
 		}
 	}
 }

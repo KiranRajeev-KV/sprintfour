@@ -1,4 +1,4 @@
-package main
+package document
 
 import (
 	"fmt"
@@ -10,13 +10,9 @@ import (
 )
 
 const (
-	maxUploadFiles      = 600
-	maxUploadFileBytes  = 10 * 1024 * 1024
-	maxUploadTotalBytes = 40 * 1024 * 1024
-)
-
-var (
-	workerPool *WorkerPool
+	MaxUploadFiles      = 600
+	MaxUploadFileBytes  = 10 * 1024 * 1024
+	MaxUploadTotalBytes = 40 * 1024 * 1024
 )
 
 var (
@@ -53,7 +49,7 @@ var (
 	medicalLicensePattern = regexp.MustCompile(`(?i)\b(?:Med(?:ical)? Lic(?:ense)?|Medical License)\s*(?:No\.?|Number|#|:)?\s*([A-Z0-9-]{5,20})\b`)
 )
 
-type runtimeDetection struct {
+type RuntimeDetection struct {
 	Start           int
 	End             int
 	Text            string
@@ -64,7 +60,12 @@ type runtimeDetection struct {
 	SuggestedStatus string
 }
 
-func normalizeUploadMode(value string) string {
+type RuntimeDetectionOptions struct {
+	IncludeGLiNEROwned bool
+	IncludeRegexOwned  bool
+}
+
+func NormalizeUploadMode(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
 	if value == "" {
 		return "replace"
@@ -72,7 +73,7 @@ func normalizeUploadMode(value string) string {
 	return value
 }
 
-func titleFromFilename(filename string) string {
+func TitleFromFilename(filename string) string {
 	base := path.Base(strings.ReplaceAll(filename, "\\", "/"))
 	trimmed := strings.TrimSuffix(base, path.Ext(base))
 	if trimmed == "" {
@@ -81,7 +82,7 @@ func titleFromFilename(filename string) string {
 	return trimmed
 }
 
-func nullableString(value string) *string {
+func NullableString(value string) *string {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return nil
@@ -89,27 +90,27 @@ func nullableString(value string) *string {
 	return &value
 }
 
-func formatBatchID(sequence int) string {
+func FormatBatchID(sequence int) string {
 	return fmt.Sprintf("batch_%06d", sequence)
 }
 
-func formatUploadDocumentID(sequence int) string {
+func FormatUploadDocumentID(sequence int) string {
 	return fmt.Sprintf("upload_%06d", sequence)
 }
 
-func formatGeneratedRedactionID(sequence int) string {
+func FormatGeneratedRedactionID(sequence int) string {
 	return fmt.Sprintf("runtime_red_%06d", sequence)
 }
 
-func parseUploadDocumentSequence(id string) (int, bool) {
+func ParseUploadDocumentSequence(id string) (int, bool) {
 	return parseNumericSuffix(id, "upload_")
 }
 
-func parseGeneratedRedactionSequence(id string) (int, bool) {
+func ParseGeneratedRedactionSequence(id string) (int, bool) {
 	return parseNumericSuffix(id, "runtime_red_")
 }
 
-func parseManualRedactionSequence(id string) (int, bool) {
+func ParseManualRedactionSequence(id string) (int, bool) {
 	return parseNumericSuffix(id, "user_red_")
 }
 
@@ -124,14 +125,14 @@ func parseNumericSuffix(value, prefix string) (int, bool) {
 	return parsed, true
 }
 
-func normalizeUploadedText(text string) string {
+func NormalizeUploadedText(text string) string {
 	text = strings.TrimPrefix(text, "\ufeff")
 	text = strings.ReplaceAll(text, "\r\n", "\n")
 	text = strings.ReplaceAll(text, "\r", "\n")
 	return text
 }
 
-func classifyUploadedDocument(redactions []*Redaction) (string, string) {
+func ClassifyUploadedDocument(redactions []*Redaction) (string, string) {
 	if len(redactions) == 0 {
 		return "CLEAN", "LOW"
 	}
@@ -165,16 +166,16 @@ func classifyUploadedDocument(redactions []*Redaction) (string, string) {
 	return "READY", "LOW"
 }
 
-func detectRuntimeRedactions(text string) []runtimeDetection {
-	return detectRuntimeRedactionsWithOptions(text, runtimeDetectionOptions{
-		includeGLiNEROwned: true,
-		includeRegexOwned:  true,
+func DetectRuntimeRedactions(text string) []RuntimeDetection {
+	return DetectRuntimeRedactionsWithOptions(text, RuntimeDetectionOptions{
+		IncludeGLiNEROwned: true,
+		IncludeRegexOwned:  true,
 	})
 }
 
-func detectRuntimeRedactionsWithOptions(text string, options runtimeDetectionOptions) []runtimeDetection {
-	candidates := make([]runtimeDetection, 0, 24)
-	if options.includeGLiNEROwned {
+func DetectRuntimeRedactionsWithOptions(text string, options RuntimeDetectionOptions) []RuntimeDetection {
+	candidates := make([]RuntimeDetection, 0, 24)
+	if options.IncludeGLiNEROwned {
 		candidates = append(candidates,
 			findRuntimeDetections(text, emailPattern, "EMAIL", nil, "runtime_regex", "ACCEPTED", "Detected email-like token with a strong regex pattern")...,
 		)
@@ -194,7 +195,7 @@ func detectRuntimeRedactionsWithOptions(text string, options runtimeDetectionOpt
 			findRuntimeDetectionsWithSubmatch(text, usPhonePattern, 1, "US_PHONE", nil, "runtime_regex", "ACCEPTED", "Detected US/NA phone number pattern")...,
 		)
 	}
-	if options.includeRegexOwned {
+	if options.IncludeRegexOwned {
 		candidates = append(candidates,
 			findRuntimeDetections(text, panPattern, "PAN_LIKE_ID", nil, "runtime_regex", "ACCEPTED", "Detected PAN-like identifier pattern")...,
 		)
@@ -279,7 +280,7 @@ func detectRuntimeRedactionsWithOptions(text string, options runtimeDetectionOpt
 		return candidates[i].Start < candidates[j].Start
 	})
 
-	filtered := make([]runtimeDetection, 0, len(candidates))
+	filtered := make([]RuntimeDetection, 0, len(candidates))
 	for _, candidate := range candidates {
 		if strings.TrimSpace(candidate.Text) == "" {
 			continue
@@ -301,17 +302,17 @@ func detectRuntimeRedactionsWithOptions(text string, options runtimeDetectionOpt
 	return filtered
 }
 
-func findRuntimeDetections(text string, pattern *regexp.Regexp, piiType string, confidence *float64, source, suggestedStatus, reason string) []runtimeDetection {
+func findRuntimeDetections(text string, pattern *regexp.Regexp, piiType string, confidence *float64, source, suggestedStatus, reason string) []RuntimeDetection {
 	matches := pattern.FindAllStringIndex(text, -1)
-	detections := make([]runtimeDetection, 0, len(matches))
+	detections := make([]RuntimeDetection, 0, len(matches))
 	for _, match := range matches {
 		start := byteIndexToRuneIndex(text, match[0])
 		end := byteIndexToRuneIndex(text, match[1])
-		spanText, err := substringByRuneIndex(text, start, end)
+		spanText, err := SubstringByRuneIndex(text, start, end)
 		if err != nil {
 			continue
 		}
-		detections = append(detections, runtimeDetection{
+		detections = append(detections, RuntimeDetection{
 			Start:           start,
 			End:             end,
 			Text:            spanText,
@@ -325,9 +326,9 @@ func findRuntimeDetections(text string, pattern *regexp.Regexp, piiType string, 
 	return detections
 }
 
-func findRuntimeDetectionsWithSubmatch(text string, pattern *regexp.Regexp, group int, piiType string, confidence *float64, source, suggestedStatus, reason string) []runtimeDetection {
+func findRuntimeDetectionsWithSubmatch(text string, pattern *regexp.Regexp, group int, piiType string, confidence *float64, source, suggestedStatus, reason string) []RuntimeDetection {
 	matches := pattern.FindAllStringSubmatchIndex(text, -1)
-	detections := make([]runtimeDetection, 0, len(matches))
+	detections := make([]RuntimeDetection, 0, len(matches))
 	for _, match := range matches {
 		startIndex := group * 2
 		if len(match) <= startIndex+1 {
@@ -341,11 +342,11 @@ func findRuntimeDetectionsWithSubmatch(text string, pattern *regexp.Regexp, grou
 
 		start := byteIndexToRuneIndex(text, startByte)
 		end := byteIndexToRuneIndex(text, endByte)
-		spanText, err := substringByRuneIndex(text, start, end)
+		spanText, err := SubstringByRuneIndex(text, start, end)
 		if err != nil {
 			continue
 		}
-		detections = append(detections, runtimeDetection{
+		detections = append(detections, RuntimeDetection{
 			Start:           start,
 			End:             end,
 			Text:            spanText,
@@ -367,4 +368,67 @@ func byteIndexToRuneIndex(text string, byteIndex int) int {
 		return len([]rune(text))
 	}
 	return len([]rune(text[:byteIndex]))
+}
+
+func initialReviewState(redaction *Redaction) string {
+	if strings.EqualFold(strings.TrimSpace(redaction.SuggestedStatus), "ACCEPTED") {
+		return "ACCEPTED"
+	}
+	switch redaction.Source {
+	case "synthetic_injection":
+		if strings.EqualFold(strings.TrimSpace(redaction.SuggestedStatus), "ACCEPTED") {
+			return "ACCEPTED"
+		}
+	case "regex_candidate", "controlled_false_positive", "controlled_missed_pii":
+		return "PENDING"
+	}
+	if strings.EqualFold(strings.TrimSpace(redaction.SuggestedStatus), "REVIEW") {
+		return "PENDING"
+	}
+	return "PENDING"
+}
+
+func NormalizeStatus(value string) string {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "READY", "NEEDS_REVIEW", "FAILED", "CLEAN", "APPROVED", "EXPORTED",
+		"QUEUED", "PROCESSING":
+		return strings.ToUpper(strings.TrimSpace(value))
+	default:
+		return "READY"
+	}
+}
+
+func NormalizeRisk(value string) string {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "LOW", "MEDIUM", "HIGH":
+		return strings.ToUpper(strings.TrimSpace(value))
+	default:
+		return "UNKNOWN"
+	}
+}
+
+func ValueOrDefault(value *string, fallback string) string {
+	if value == nil {
+		return fallback
+	}
+	return *value
+}
+
+func ValueOrBoolDefault(value *bool, fallback bool) bool {
+	if value == nil {
+		return fallback
+	}
+	return *value
+}
+
+func IsAllowedRedactionType(value string) bool {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "PERSON", "EMAIL", "PHONE", "ADDRESS", "CASE_ID", "CLIENT_ID", "BANK_ACCOUNT", "PAN_LIKE_ID", "DATE_OF_BIRTH", "ORGANIZATION_CONTACT",
+		"SSN", "EIN", "ITIN", "CREDIT_CARD", "US_PHONE", "MAC_ADDRESS", "IP_ADDRESS",
+		"IBAN", "SWIFT_BIC", "AADHAAR", "MRN", "PATIENT_ID", "API_KEY",
+		"US_DRIVER_LICENSE", "MEDICAL_LICENSE", "DOMAIN_NAME", "URL":
+		return true
+	default:
+		return false
+	}
 }

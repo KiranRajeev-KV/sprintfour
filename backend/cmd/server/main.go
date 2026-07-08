@@ -1,6 +1,11 @@
 package main
 
 import (
+	"backend/internal/config"
+	"backend/internal/detector"
+	"backend/internal/httpapi"
+	storepkg "backend/internal/store"
+	"backend/internal/worker"
 	"context"
 	"errors"
 	"log/slog"
@@ -15,7 +20,7 @@ import (
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	dotEnvPath, err := loadDotEnv()
+	dotEnvPath, err := config.LoadDotEnv()
 	if err != nil {
 		logger.Error("dotenv_load_failed", slog.String("error", err.Error()))
 		os.Exit(1)
@@ -26,7 +31,7 @@ func main() {
 		logger.Info("dotenv_not_found")
 	}
 
-	store := NewStore(nil, nil)
+	store := storepkg.NewStore(nil, nil)
 	summary := store.Summary()
 	logger.Info("startup_store_ready",
 		slog.Int("document_count", summary.TotalDocuments),
@@ -38,16 +43,17 @@ func main() {
 
 	workerCount := envInt("WORKER_COUNT", 8)
 	queueDepth := envInt("QUEUE_DEPTH", 200)
-	detector := newRuntimeDetector(logger, detectorConfig{
-		glinerEnabled:        envBool("GLINER_ENABLED", false),
-		glinerURL:            envString("GLINER_URL", "http://127.0.0.1:8090"),
-		glinerTimeoutMS:      envInt("GLINER_TIMEOUT_MS", 2500),
-		glinerMaxConcurrency: envInt("GLINER_MAX_CONCURRENCY", 1),
+	detector := detector.NewRuntimeDetector(logger, detector.Config{
+		GLiNEREnabled:        envBool("GLINER_ENABLED", false),
+		GLiNERURL:            envString("GLINER_URL", "http://127.0.0.1:8090"),
+		GLiNERTimeoutMS:      envInt("GLINER_TIMEOUT_MS", 2500),
+		GLiNERMaxConcurrency: envInt("GLINER_MAX_CONCURRENCY", 1),
 	})
-	workerPool = NewWorkerPool(store, detector, workerCount, queueDepth)
+	workerPool := worker.NewWorkerPool(logger, store, detector, workerCount, queueDepth)
+	store.SetJobSubmitter(workerPool)
 	workerPool.Start()
 
-	router := NewRouter(logger, store)
+	router := httpapi.NewRouter(logger, store)
 	server := &http.Server{
 		Addr:    ":8080",
 		Handler: router,

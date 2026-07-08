@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"bufio"
@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-func loadDotEnv() (string, error) {
-	path, ok, err := findDotEnv()
+func LoadDotEnv() (string, error) {
+	path, ok, err := FindDotEnv()
 	if err != nil {
 		return "", err
 	}
@@ -62,7 +62,7 @@ func loadDotEnv() (string, error) {
 	return path, nil
 }
 
-func findDotEnv() (string, bool, error) {
+func FindDotEnv() (string, bool, error) {
 	workingDir, err := os.Getwd()
 	if err != nil {
 		return "", false, fmt.Errorf("get working directory: %w", err)

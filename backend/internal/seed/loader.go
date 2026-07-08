@@ -1,6 +1,7 @@
-package main
+package seed
 
 import (
+	doc "backend/internal/document"
 	"bufio"
 	"encoding/json"
 	"errors"
@@ -8,6 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+)
+
+type (
+	Document  = doc.Document
+	Redaction = doc.Redaction
 )
 
 const minimumDocumentCount = 200
@@ -148,7 +154,7 @@ func loadRedactions(path string, documents []*Document) ([]*Redaction, error) {
 		if redaction.Start < 0 || redaction.End <= redaction.Start {
 			return nil, fmt.Errorf("redaction %q has out-of-bounds span [%d,%d) for document %q", redaction.ID, redaction.Start, redaction.End, redaction.DocumentID)
 		}
-		spanText, err := substringByRuneIndex(document.Text, redaction.Start, redaction.End)
+		spanText, err := doc.SubstringByRuneIndex(document.Text, redaction.Start, redaction.End)
 		if err != nil {
 			return nil, fmt.Errorf("redaction %q has out-of-bounds span [%d,%d) for document %q", redaction.ID, redaction.Start, redaction.End, redaction.DocumentID)
 		}
@@ -186,8 +192,8 @@ func (r rawDocument) toDocument(lineNumber int) (*Document, error) {
 		return nil, missingField("char_count")
 	}
 
-	status := normalizeStatus(valueOrDefault(r.WorkflowHint, "READY"))
-	riskLevel := normalizeRisk(valueOrDefault(r.RiskLevelHint, "UNKNOWN"))
+	status := doc.NormalizeStatus(doc.ValueOrDefault(r.WorkflowHint, "READY"))
+	riskLevel := doc.NormalizeRisk(doc.ValueOrDefault(r.RiskLevelHint, "UNKNOWN"))
 
 	document := &Document{
 		ID:                   strings.TrimSpace(*r.ID),
@@ -196,7 +202,7 @@ func (r rawDocument) toDocument(lineNumber int) (*Document, error) {
 		SourceFile:           *r.SourceFile,
 		Text:                 *r.Text,
 		CharCount:            *r.CharCount,
-		SyntheticPIIInjected: valueOrBoolDefault(r.SyntheticPIIInjected, false),
+		SyntheticPIIInjected: doc.ValueOrBoolDefault(r.SyntheticPIIInjected, false),
 		Status:               status,
 		RiskLevel:            riskLevel,
 		FailureHint:          r.FailureHint,
@@ -261,37 +267,4 @@ func (r rawRedaction) toRedaction(lineNumber int) (*Redaction, error) {
 	}
 
 	return redaction, nil
-}
-
-func valueOrDefault(value *string, fallback string) string {
-	if value == nil {
-		return fallback
-	}
-	return *value
-}
-
-func valueOrBoolDefault(value *bool, fallback bool) bool {
-	if value == nil {
-		return fallback
-	}
-	return *value
-}
-
-func normalizeStatus(value string) string {
-	switch strings.ToUpper(strings.TrimSpace(value)) {
-	case "READY", "NEEDS_REVIEW", "FAILED", "CLEAN", "APPROVED", "EXPORTED",
-		"QUEUED", "PROCESSING":
-		return strings.ToUpper(strings.TrimSpace(value))
-	default:
-		return "READY"
-	}
-}
-
-func normalizeRisk(value string) string {
-	switch strings.ToUpper(strings.TrimSpace(value)) {
-	case "LOW", "MEDIUM", "HIGH":
-		return strings.ToUpper(strings.TrimSpace(value))
-	default:
-		return "UNKNOWN"
-	}
 }

@@ -1,6 +1,8 @@
-package main
+package httpapi
 
 import (
+	doc "backend/internal/document"
+	"backend/internal/store"
 	"errors"
 	"io"
 	"log/slog"
@@ -32,10 +34,10 @@ type manualRedactionRequest struct {
 
 type Server struct {
 	logger *slog.Logger
-	store  *Store
+	store  *store.Store
 }
 
-func NewRouter(logger *slog.Logger, store *Store) *gin.Engine {
+func NewRouter(logger *slog.Logger, store *store.Store) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 
 	server := &Server{
@@ -129,8 +131,8 @@ func (s *Server) getDocument(c *gin.Context) {
 		"source_file":              document.SourceFile,
 		"text":                     document.Text,
 		"char_count":               document.CharCount,
-		"status":                   normalizeStatus(document.Status),
-		"risk_level":               normalizeRisk(document.RiskLevel),
+		"status":                   doc.NormalizeStatus(document.Status),
+		"risk_level":               doc.NormalizeRisk(document.RiskLevel),
 		"failure_hint":             document.FailureHint,
 		"redaction_count":          document.RedactionCount,
 		"low_confidence_count":     document.LowConfidenceCount,
@@ -193,13 +195,13 @@ func (s *Server) getDocumentReviewSummary(c *gin.Context) {
 func (s *Server) uploadDocuments(c *gin.Context) {
 	startedAt := time.Now()
 	requestID := c.GetHeader("X-Request-Id")
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxUploadTotalBytes+(512*1024))
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, doc.MaxUploadTotalBytes+(512*1024))
 	s.logger.Info("upload_request_started",
 		slog.String("request_id", requestID),
 		slog.String("method", c.Request.Method),
 		slog.String("path", c.FullPath()),
-		slog.Int64("max_upload_total_bytes", maxUploadTotalBytes),
-		slog.Int("max_upload_files", maxUploadFiles),
+		slog.Int64("max_upload_total_bytes", doc.MaxUploadTotalBytes),
+		slog.Int("max_upload_files", doc.MaxUploadFiles),
 	)
 	reader, err := c.Request.MultipartReader()
 	if err != nil {
@@ -216,8 +218,8 @@ func (s *Server) uploadDocuments(c *gin.Context) {
 	totalBytes := int64(0)
 	uploadedCount := 0
 	rejectedCount := 0
-	acceptedInputs := make([]UploadedDocumentInput, 0, 64)
-	items := make([]UploadItemResult, 0, 64)
+	acceptedInputs := make([]doc.UploadedDocumentInput, 0, 64)
+	items := make([]doc.UploadItemResult, 0, 64)
 
 	for {
 		partStartedAt := time.Now()
@@ -257,7 +259,7 @@ func (s *Server) uploadDocuments(c *gin.Context) {
 				writeError(c, http.StatusBadRequest, "invalid_mode", "upload mode must be replace or append")
 				return
 			}
-			mode = normalizeUploadMode(string(content))
+			mode = doc.NormalizeUploadMode(string(content))
 			s.logger.Info("upload_mode_read",
 				slog.String("request_id", requestID),
 				slog.String("mode", mode),
@@ -271,12 +273,12 @@ func (s *Server) uploadDocuments(c *gin.Context) {
 		}
 
 		uploadedCount++
-		if uploadedCount > maxUploadFiles {
+		if uploadedCount > doc.MaxUploadFiles {
 			part.Close()
 			s.logger.Error("upload_file_limit_exceeded",
 				slog.String("request_id", requestID),
 				slog.Int("uploaded", uploadedCount),
-				slog.Int("max_upload_files", maxUploadFiles),
+				slog.Int("max_upload_files", doc.MaxUploadFiles),
 				slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
 			)
 			writeError(c, http.StatusBadRequest, "too_many_files", "too many files uploaded")
@@ -286,12 +288,12 @@ func (s *Server) uploadDocuments(c *gin.Context) {
 		input, item, size := readUploadedTXTPart(part)
 		totalBytes += size
 		part.Close()
-		if totalBytes > maxUploadTotalBytes {
+		if totalBytes > doc.MaxUploadTotalBytes {
 			s.logger.Error("upload_total_bytes_exceeded",
 				slog.String("request_id", requestID),
 				slog.Int("uploaded", uploadedCount),
 				slog.Int64("total_bytes", totalBytes),
-				slog.Int64("max_upload_total_bytes", maxUploadTotalBytes),
+				slog.Int64("max_upload_total_bytes", doc.MaxUploadTotalBytes),
 				slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
 			)
 			writeError(c, http.StatusBadRequest, "upload_too_large", "upload exceeds the maximum allowed size")
@@ -379,7 +381,7 @@ func (s *Server) addManualRedaction(c *gin.Context) {
 		return
 	}
 
-	result, err := s.store.AddManualRedaction(c.Param("id"), manualRedactionInput{
+	result, err := s.store.AddManualRedaction(c.Param("id"), store.ManualRedactionInput{
 		Start:        *request.Start,
 		End:          *request.End,
 		Type:         valueOrEmpty(request.Type),
@@ -625,17 +627,17 @@ func (s *Server) recovery() gin.HandlerFunc {
 
 func (s *Server) writeMutationError(c *gin.Context, err error) {
 	switch {
-	case errors.Is(err, ErrDocumentNotFound):
+	case errors.Is(err, store.ErrDocumentNotFound):
 		writeError(c, http.StatusNotFound, "not_found", "document not found")
-	case errors.Is(err, ErrRedactionNotFound):
+	case errors.Is(err, store.ErrRedactionNotFound):
 		writeError(c, http.StatusNotFound, "not_found", "redaction not found")
 	default:
-		var validationErr *ValidationError
+		var validationErr *store.ValidationError
 		if errors.As(err, &validationErr) {
 			writeError(c, http.StatusBadRequest, validationErr.Code, validationErr.Message)
 			return
 		}
-		var conflictErr *StateConflictError
+		var conflictErr *store.StateConflictError
 		if errors.As(err, &conflictErr) {
 			code := conflictErr.Code
 			if code == "" {
@@ -648,14 +650,14 @@ func (s *Server) writeMutationError(c *gin.Context, err error) {
 	}
 }
 
-func documentListItem(document DocumentSnapshot) gin.H {
+func documentListItem(document doc.DocumentSnapshot) gin.H {
 	return gin.H{
 		"id":                      document.ID,
 		"title":                   document.Title,
 		"source":                  document.Source,
 		"source_file":             document.SourceFile,
-		"status":                  normalizeStatus(document.Status),
-		"risk_level":              normalizeRisk(document.RiskLevel),
+		"status":                  doc.NormalizeStatus(document.Status),
+		"risk_level":              doc.NormalizeRisk(document.RiskLevel),
 		"char_count":              document.CharCount,
 		"pii_count":               document.PIICount,
 		"low_confidence_count":    document.LowConfidenceCount,
@@ -708,8 +710,8 @@ func decodeBulkRedactionsRequest(c *gin.Context) (bulkRedactionsRequest, bool) {
 }
 
 func writeError(c *gin.Context, statusCode int, code, message string) {
-	c.AbortWithStatusJSON(statusCode, APIErrorEnvelope{
-		Error: APIError{
+	c.AbortWithStatusJSON(statusCode, doc.APIErrorEnvelope{
+		Error: doc.APIError{
 			Code:    code,
 			Message: message,
 		},
@@ -759,45 +761,45 @@ func valueOrEmpty(value *string) string {
 	return *value
 }
 
-func readUploadedTXTPart(part *multipart.Part) (UploadedDocumentInput, UploadItemResult, int64) {
+func readUploadedTXTPart(part *multipart.Part) (doc.UploadedDocumentInput, doc.UploadItemResult, int64) {
 	filename, relativePath := uploadNames(part.FileName())
-	item := UploadItemResult{
+	item := doc.UploadItemResult{
 		Filename:     filename,
-		RelativePath: nullableString(relativePath),
+		RelativePath: doc.NullableString(relativePath),
 		Accepted:     false,
 	}
 
 	if !strings.EqualFold(path.Ext(filename), ".txt") {
 		item.Reason = "only_txt_supported"
 		_, _ = io.Copy(io.Discard, part)
-		return UploadedDocumentInput{}, item, 0
+		return doc.UploadedDocumentInput{}, item, 0
 	}
 
-	content, err := io.ReadAll(io.LimitReader(part, maxUploadFileBytes+1))
+	content, err := io.ReadAll(io.LimitReader(part, doc.MaxUploadFileBytes+1))
 	if err != nil {
 		item.Reason = "read_failed"
-		return UploadedDocumentInput{}, item, 0
+		return doc.UploadedDocumentInput{}, item, 0
 	}
 	size := int64(len(content))
 	if len(content) == 0 {
 		item.Reason = "empty_file"
-		return UploadedDocumentInput{}, item, size
+		return doc.UploadedDocumentInput{}, item, size
 	}
-	if len(content) > maxUploadFileBytes {
+	if len(content) > doc.MaxUploadFileBytes {
 		item.Reason = "file_too_large"
 		_, _ = io.Copy(io.Discard, part)
-		return UploadedDocumentInput{}, item, size
+		return doc.UploadedDocumentInput{}, item, size
 	}
 
-	text := normalizeUploadedText(string(content))
+	text := doc.NormalizeUploadedText(string(content))
 	if strings.TrimSpace(text) == "" {
 		item.Reason = "empty_file"
-		return UploadedDocumentInput{}, item, size
+		return doc.UploadedDocumentInput{}, item, size
 	}
 
 	item.Accepted = true
 	item.Reason = "uploaded"
-	return UploadedDocumentInput{
+	return doc.UploadedDocumentInput{
 		Filename:     filename,
 		RelativePath: relativePath,
 		Text:         text,
@@ -819,16 +821,16 @@ func uploadNames(raw string) (filename string, relativePath string) {
 	return base, normalized
 }
 
-func mergeUploadItemResults(items []UploadItemResult, accepted []UploadItemResult) []UploadItemResult {
-	acceptedByFilename := make(map[string][]UploadItemResult, len(accepted))
+func mergeUploadItemResults(items []doc.UploadItemResult, accepted []doc.UploadItemResult) []doc.UploadItemResult {
+	acceptedByFilename := make(map[string][]doc.UploadItemResult, len(accepted))
 	for _, item := range accepted {
-		key := item.Filename + "|" + valueOrDefault(item.RelativePath, "")
+		key := item.Filename + "|" + doc.ValueOrDefault(item.RelativePath, "")
 		acceptedByFilename[key] = append(acceptedByFilename[key], item)
 	}
 
-	merged := make([]UploadItemResult, 0, len(items))
+	merged := make([]doc.UploadItemResult, 0, len(items))
 	for _, item := range items {
-		key := item.Filename + "|" + valueOrDefault(item.RelativePath, "")
+		key := item.Filename + "|" + doc.ValueOrDefault(item.RelativePath, "")
 		matches := acceptedByFilename[key]
 		if len(matches) == 0 {
 			merged = append(merged, item)
