@@ -57,7 +57,17 @@ func (s *Store) SetDocumentProcessed(documentID string, detections []RuntimeDete
 		}
 	}
 
-	s.redactionsByDoc[documentID] = append(s.redactionsByDoc[documentID], redactions...)
+	existing := s.redactionsByDoc[documentID]
+	preserved := make([]*Redaction, 0, len(existing)+len(redactions))
+	for _, redaction := range existing {
+		if isRuntimeGeneratedRedaction(redaction) {
+			delete(s.redactionsByID, redaction.ID)
+			delete(s.redactionRuntimeByID, redaction.ID)
+			continue
+		}
+		preserved = append(preserved, redaction)
+	}
+	s.redactionsByDoc[documentID] = append(preserved, redactions...)
 	for _, r := range redactions {
 		s.redactionsByID[r.ID] = r
 		s.redactionRuntimeByID[r.ID] = initialRedactionRuntimeState(r)

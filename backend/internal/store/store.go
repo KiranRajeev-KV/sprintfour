@@ -102,6 +102,7 @@ type JobSubmitter interface {
 	Submit(documentID, text string)
 }
 
+// NewStore builds an in-memory document store from the provided seed data.
 func NewStore(documents []*Document, redactions []*Redaction) *Store {
 	store := &Store{}
 	store.rebuildLocked(documents, redactions)

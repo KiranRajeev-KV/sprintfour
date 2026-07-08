@@ -101,3 +101,18 @@ func copyStringPointer(value *string) *string {
 func float64Pointer(value float64) *float64 {
 	return &value
 }
+
+func isRuntimeGeneratedRedaction(redaction *Redaction) bool {
+	if redaction == nil {
+		return false
+	}
+	if _, ok := doc.ParseGeneratedRedactionSequence(redaction.ID); ok {
+		return true
+	}
+	switch redaction.Source {
+	case "runtime_regex", "gliner_local":
+		return true
+	default:
+		return false
+	}
+}
