@@ -32,6 +32,7 @@ type Job struct {
 	CreatedAt  time.Time
 }
 
+// WorkerPool processes document detection jobs with bounded concurrency.
 type WorkerPool struct {
 	logger   *slog.Logger
 	store    *store.Store
@@ -47,6 +48,7 @@ type WorkerPool struct {
 	jobSeq   int
 }
 
+// NewWorkerPool constructs a worker pool for document processing jobs.
 func NewWorkerPool(logger *slog.Logger, store *store.Store, detector detector.Detector, workerCount, queueDepth int) *WorkerPool {
 	ctx, cancel := context.WithCancel(context.Background())
 	if logger == nil {
@@ -147,9 +149,9 @@ func (p *WorkerPool) worker(id int) {
 }
 
 func (p *WorkerPool) processJob(job *Job) {
-	p.mu.Lock()
-	job.Status = JobRunning
-	p.mu.Unlock()
+	p.updateJob(job.ID, func(current *Job) {
+		current.Status = JobRunning
+	})
 
 	if err := p.store.SetDocumentProcessing(job.DocumentID); err != nil {
 		p.handleFailure(job, err.Error())
@@ -183,9 +185,10 @@ func (p *WorkerPool) processJob(job *Job) {
 		return
 	}
 
-	p.mu.Lock()
-	job.Status = JobSucceeded
-	p.mu.Unlock()
+	p.updateJob(job.ID, func(current *Job) {
+		current.Status = JobSucceeded
+		current.Error = ""
+	})
 
 	p.logger.Info("job_succeeded",
 		slog.String("job_id", job.ID),
@@ -195,16 +198,22 @@ func (p *WorkerPool) processJob(job *Job) {
 }
 
 func (p *WorkerPool) handleFailure(job *Job, errMsg string) {
-	job.Attempts++
-	job.Error = errMsg
+	current := p.updateJob(job.ID, func(current *Job) {
+		current.Attempts++
+		current.Error = errMsg
+		if current.Attempts <= current.MaxRetries {
+			current.Status = JobQueued
+			return
+		}
+		current.Status = JobFailed
+	})
 
-	if job.Attempts <= job.MaxRetries {
-		job.Status = JobQueued
-		delay := time.Duration(job.Attempts) * time.Second
+	if current.Attempts <= current.MaxRetries {
+		delay := time.Duration(current.Attempts) * time.Second
 		p.logger.Warn("job_retry",
-			slog.String("job_id", job.ID),
-			slog.String("document_id", job.DocumentID),
-			slog.Int("attempt", job.Attempts),
+			slog.String("job_id", current.ID),
+			slog.String("document_id", current.DocumentID),
+			slog.Int("attempt", current.Attempts),
 			slog.Duration("delay", delay),
 			slog.String("error", errMsg),
 		)
@@ -214,14 +223,26 @@ func (p *WorkerPool) handleFailure(job *Job, errMsg string) {
 			case <-p.ctx.Done():
 			}
 		})
-	} else {
-		job.Status = JobFailed
-		p.store.SetDocumentFailed(job.DocumentID, errMsg)
-		p.logger.Error("job_failed_permanent",
-			slog.String("job_id", job.ID),
-			slog.String("document_id", job.DocumentID),
-			slog.Int("attempts", job.Attempts),
-			slog.String("error", errMsg),
-		)
+		return
 	}
+
+	p.store.SetDocumentFailed(current.DocumentID, errMsg)
+	p.logger.Error("job_failed_permanent",
+		slog.String("job_id", current.ID),
+		slog.String("document_id", current.DocumentID),
+		slog.Int("attempts", current.Attempts),
+		slog.String("error", errMsg),
+	)
+}
+
+func (p *WorkerPool) updateJob(jobID string, mutate func(*Job)) Job {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	job, ok := p.byID[jobID]
+	if !ok {
+		return Job{}
+	}
+	mutate(job)
+	return *job
 }
