@@ -1,59 +1,49 @@
-# Dataset Preparation
+# Dataset
 
-This repository uses the CUAD v1 legal contract dataset as the starting corpus for the Sprintfour batch-review product.
+This directory contains two things:
 
-## What this step does
+- source material and helper scripts for CUAD-based experimentation
+- manual text fixtures used for local uploads, tests, and smoke runs
 
-- Downloads the CUAD v1 archive from an official source.
-- Extracts the raw CUAD archive.
-- Verifies the extracted plain-text contract folder exists at `dataset/raw/cuad_v1/extracted/CUAD_v1/full_contract_txt`.
-- Reports the number of extracted `.txt` files.
+## Layout
 
-## What this step does not do
+- `raw/cuad_v1/`: downloaded and extracted CUAD artifacts
+- `raw/manual_synthetic_txt/`: hand-written `.txt` fixtures for backend upload and export flows
+- `processed/`: generated JSONL seed artifacts used by tests and offline prep scripts
+- `scripts/`: dataset preparation and benchmarking helpers
 
-- No JSONL preparation.
-- No synthetic PII injection.
-- No mock detections.
-- No frontend or backend product logic.
+## Main Commands
 
-## Manual synthetic samples
-
-Manually created synthetic text samples for upload and workflow testing now live under:
-
-- `dataset/raw/manual_synthetic_txt/`
-
-These are separate from the CUAD extraction flow and are intended for local batch upload and exception-path testing.
-
-## Command
+Prepare CUAD:
 
 ```bash
 python3 dataset/scripts/prepare_cuad.py
-python3 dataset/scripts/benchmark_upload.py 100
+```
+
+Generate processed mock artifacts:
+
+```bash
 python3 dataset/scripts/generate_mock_redactions.py
 ```
 
-## Output of `prepare_cuad.py`
+Run upload benchmark:
 
-- `dataset/raw/cuad_v1/downloads/CUAD_v1.zip`
-- `dataset/raw/cuad_v1/extracted/CUAD_v1/full_contract_txt/`
+```bash
+python3 dataset/scripts/benchmark_upload.py 100
+```
 
-## Processed mock-data artifacts
+## Important Notes
 
-Other dataset scripts may generate:
+- the backend does not load dataset seeds at runtime
+- the backend starts empty and expects uploads through the API
+- `dataset/raw/manual_synthetic_txt/` is the fixture set used by `backend/scripts/api_smoke.sh`
+- generated JSONL files under `processed/` are primarily used by tests and offline mock-data prep
 
-- `dataset/processed/documents_seed.jsonl`
-- `dataset/processed/mock_redactions.jsonl`
-- `dataset/processed/mock_redaction_manifest.json`
-- `dataset/processed/pii_exploration_summary.json`
+## Generated Outputs
 
-## Mock redaction step
+The prep scripts may produce:
 
-`dataset/scripts/generate_mock_redactions.py` reads the processed CUAD contracts, explores existing PII-like regex candidates, injects deterministic synthetic PII into a controlled subset of documents, and writes mock redaction suggestions for the hackathon batch workflow.
-
-- Synthetic injection means the script adds deterministic fake contact/identifier values into selected documents so later backend/frontend work has stable review cases.
-- Regex candidates mean the script flags existing email-like, phone-like, or similar patterns as heuristic review signals only. They are not treated as production-quality PII detection or as ground truth.
-- The generated outputs are mock suggestions for hackathon workflow demos, not production PII detection.
-
-## Ignored raw files
-
-Large raw CUAD downloads and extracted source files are kept under `dataset/raw/cuad_v1/` and ignored by git.
+- `processed/documents_seed.jsonl`
+- `processed/mock_redactions.jsonl`
+- `processed/mock_redaction_manifest.json`
+- `processed/pii_exploration_summary.json`

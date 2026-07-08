@@ -1,9 +1,15 @@
 # NER Sidecar
 
-Local FastAPI sidecar for GLiNER2 inference.
+Optional local FastAPI sidecar for GLiNER2 inference.
 
-This project uses `uv` and the repo currently pins PyTorch to the CPU-only wheel.
-The sidecar loads `ner-sidecar/.env` automatically at startup. Explicit process env vars still override file values.
+The backend does not require this process to run. When enabled, the sidecar supplies semantic detections that complement the backend's regex detection.
+
+Current label schema:
+
+- `PERSON`
+- `EMAIL`
+- `PHONE`
+- `ADDRESS`
 
 ## Install
 
@@ -12,12 +18,7 @@ cd ner-sidecar
 uv sync
 ```
 
-If you want CUDA later, you must replace the CPU-only PyTorch wheel manually after `uv sync`:
-
-```bash
-uv pip uninstall torch torchvision torchaudio
-uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
-```
+The current `uv` config pins PyTorch to the CPU wheel by default.
 
 ## Run
 
@@ -25,10 +26,11 @@ uv pip install torch torchvision torchaudio --index-url https://download.pytorch
 uv run uvicorn main:app --host 127.0.0.1 --port 8090
 ```
 
+The sidecar loads `ner-sidecar/.env` automatically at startup. Explicit environment variables still override file values.
+
 Example `.env`:
 
 ```text
-HF_HUB_DISABLE_XET=1
 GLINER_MODEL=fastino/gliner2-base-v1
 GLINER_DEVICE=cpu
 GLINER_QUANTIZE=false
@@ -36,9 +38,27 @@ GLINER_COMPILE=false
 LOG_LEVEL=INFO
 ```
 
-The sidecar logs startup, health checks, per-document detection timings, chunk counts, and label counts. It does not log raw document text.
+## Backend Integration
 
-If you want GPU inference, install the CUDA-enabled PyTorch wheel manually in the sidecar virtualenv and then set `GLINER_DEVICE=cuda`. Start with `GLINER_QUANTIZE=false` and `GLINER_COMPILE=false` until the plain CUDA path is stable on your machine, then turn tuning flags on deliberately.
+Enable the sidecar from `backend/.env`:
+
+```text
+GLINER_ENABLED=true
+GLINER_URL=http://127.0.0.1:8090
+GLINER_TIMEOUT_MS=120000
+GLINER_MAX_CONCURRENCY=1
+```
+
+If the sidecar request fails, the backend falls back to regex-only detection for that document.
+
+## Runtime Behavior
+
+- model is loaded once during FastAPI startup
+- requests larger than `200000` characters are rejected by request validation
+- text is chunked into `1800` character windows with `250` character overlap
+- overlapping same-label detections are merged by span and confidence
+- logs include startup, health, per-request timing, chunk count, and label counts
+- logs do not include raw document text
 
 ## API
 
@@ -53,3 +73,39 @@ Example request:
   "text": "John Smith lives at 100 Main Street."
 }
 ```
+
+Example response shape:
+
+```json
+{
+  "model": "fastino/gliner2-base-v1",
+  "items": [
+    {
+      "start": 0,
+      "end": 10,
+      "text": "John Smith",
+      "label": "PERSON",
+      "score": 0.91
+    }
+  ]
+}
+```
+
+## CPU and GPU Notes
+
+CPU is the current default path.
+
+If you want CUDA later, replace the installed torch wheel manually after `uv sync`:
+
+```bash
+uv pip uninstall torch torchvision torchaudio
+uv pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
+```
+
+Then set:
+
+```text
+GLINER_DEVICE=cuda
+```
+
+Start with `GLINER_QUANTIZE=false` and `GLINER_COMPILE=false` until the plain CUDA path is stable on the target machine.
