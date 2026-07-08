@@ -109,7 +109,7 @@ func (c *glinerClient) Detect(ctx context.Context, documentID, text string) ([]d
 		}
 
 		reviewState := "REVIEW"
-		if ShouldAutoAcceptGLiNERDetection(mappedType, item.Score) {
+		if shouldAutoAcceptGLiNERDetection(mappedType, item.Score) {
 			reviewState = "ACCEPTED"
 		}
 
@@ -157,7 +157,7 @@ func mapGLiNERLabel(label string) string {
 	}
 }
 
-func ShouldAutoAcceptGLiNERDetection(label string, score float64) bool {
+func shouldAutoAcceptGLiNERDetection(label string, score float64) bool {
 	switch label {
 	case "EMAIL":
 		return score >= 0.75

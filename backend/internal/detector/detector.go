@@ -11,6 +11,7 @@ type Detector interface {
 	Detect(ctx context.Context, documentID, text string) ([]document.RuntimeDetection, error)
 }
 
+// Config configures the runtime detector and optional GLiNER sidecar integration.
 type Config struct {
 	GLiNEREnabled        bool
 	GLiNERURL            string
@@ -23,6 +24,7 @@ type runtimeDetector struct {
 	glinerClient *glinerClient
 }
 
+// NewRuntimeDetector returns the detector used for backend runtime processing.
 func NewRuntimeDetector(logger *slog.Logger, cfg Config) Detector {
 	detector := &runtimeDetector{
 		logger: logger,
